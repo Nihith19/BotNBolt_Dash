@@ -24,7 +24,8 @@
     ai_cost: 'brain-circuit',
     model_performance: 'shield-check',
     company_detail: 'building-2',
-    dealer_detail: 'store'
+    dealer_detail: 'store',
+    ticket_detail: 'ticket'
   };
 
   // Nav labels
@@ -50,7 +51,8 @@
     ai_cost: 'AI Cost Breakdown',
     model_performance: 'Model Performance',
     company_detail: 'Company Detail',
-    dealer_detail: 'Dealer Detail'
+    dealer_detail: 'Dealer Detail',
+    ticket_detail: 'Ticket Details'
   };
 
   // Profiles mapping by role
@@ -183,7 +185,7 @@
       } else if (this.state.activeRole === 'companyAdmin') {
         items = ['overview', 'dealers', 'repair_analytics', 'insights', 'materials', 'tickets'];
       } else if (this.state.activeRole === 'dealer') {
-        items = ['overview', 'requests', 'materials', 'leads', 'profile'];
+        items = ['overview', 'requests', 'materials', 'leads', 'tickets', 'profile'];
       } else if (this.state.activeRole === 'supportAdmin') {
         items = ['overview', 'tickets', 'companies', 'dealers', 'ai_errors', 'monitoring'];
       }
@@ -232,6 +234,11 @@
       this.navigate('dealer_detail');
     }
 
+    navigateToTicket(ticketId) {
+      this.state.selectedTicketId = ticketId;
+      this.navigate('ticket_detail');
+    }
+
     toggleSidebar() {
       const sidebar = document.getElementById('sidebar');
       sidebar.classList.toggle('active');
@@ -251,6 +258,14 @@
       document.getElementById('pageSubtitle').innerText = `Workspace views & active records management`;
 
       // Main Render routing switcher
+      if (menu === 'ticket_detail') {
+        document.getElementById('pageTitle').innerText = `Ticket Details (${roleProfiles[role].label})`;
+        document.getElementById('pageSubtitle').innerText = `Support Ticket Logs and Diagnostic Information`;
+        this.renderTicketDetailView(canvas);
+        lucide.createIcons();
+        return;
+      }
+
       if (role === 'superAdmin') {
         this.renderSuperAdminView(canvas, menu);
       } else if (role === 'companyAdmin') {
@@ -262,6 +277,235 @@
       }
 
       lucide.createIcons();
+    }
+
+    renderTicketDetailView(canvas) {
+      const ticketId = this.state.selectedTicketId;
+      
+      // Safety checks and lookup
+      if (!this.state.db.supportAdmin) {
+        this.state.db.supportAdmin = JSON.parse(JSON.stringify(window.BotNBoltMockData.supportAdmin || {}));
+      }
+      if (!this.state.db.supportAdmin.tickets) {
+        this.state.db.supportAdmin.tickets = JSON.parse(JSON.stringify((window.BotNBoltMockData && window.BotNBoltMockData.supportAdmin && window.BotNBoltMockData.supportAdmin.tickets) || []));
+      }
+
+      let tkt = this.state.db.supportAdmin.tickets.find(t => t.id === ticketId);
+      let isCompanyAdminTicket = false;
+
+      if (!tkt && this.state.db.companyAdmin && this.state.db.companyAdmin.supportTickets) {
+        tkt = this.state.db.companyAdmin.supportTickets.find(t => t.id === ticketId);
+        isCompanyAdminTicket = true;
+      }
+
+      if (!tkt) {
+        canvas.innerHTML = `
+          <div class="card" style="padding: 40px; text-align: center;">
+            <i data-lucide="alert-circle" style="width: 48px; height: 48px; color: var(--danger); margin-bottom: 16px;"></i>
+            <h3>Ticket Not Found</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 24px;">The ticket with ID <strong>${ticketId}</strong> could not be found in the active workspace database.</p>
+            <button class="btn btn-primary" onclick="window.BotNBoltApp.navigate('tickets')">Back to Support Tickets</button>
+          </div>
+        `;
+        return;
+      }
+
+      // Map values consistently (handling slightly different keys between stores)
+      const id = tkt.id;
+      const category = tkt.issueType || tkt.problem || 'System Issue';
+      const customer = tkt.customerName || tkt.raisedBy || 'Store Representative';
+      const companyName = tkt.company || 'Home hardware';
+      const dealerName = tkt.dealer || 'HQ Admin';
+      const cityLoc = tkt.city || 'N/A';
+      const priorityVal = tkt.priority || 'Medium';
+      const statusVal = tkt.status || 'Open';
+      const assignedAgent = tkt.assignedTo || tkt.assigned || 'Unassigned';
+      const respTime = tkt.responseTime || '15 min';
+      const resolTime = tkt.resolutionTime || 'Pending';
+      const dateCreated = tkt.date || '2026-07-07 10:30 AM';
+
+      // Generate a detailed problem log
+      let issueDescriptionText = '';
+      const catLower = category.toLowerCase();
+      if (catLower.includes('detection') || catLower.includes('wrong') || catLower.includes('ai') || catLower.includes('scratch')) {
+        issueDescriptionText = `The local automated hardware scan recommended parts mismatches for a critical repair. Specifically, the neural scan model classified surface rust corrosion as structural fatigue. This created incorrect cost estimates for the repair category. Requesting remote diagnostic logs override and model alignment review.`;
+      } else if (catLower.includes('login') || catLower.includes('auth') || catLower.includes('access')) {
+        issueDescriptionText = `Dealer store agents reported recurring authorization timeouts during shifts. The session cookies are expired prematurely. This causes repeated prompt verification blocks. Logs show authorization errors code BB-AUTH-403 under the dealer portal workspace.`;
+      } else if (catLower.includes('billing') || catLower.includes('dispute') || catLower.includes('pricing') || catLower.includes('invoice')) {
+        issueDescriptionText = `Billing dispute on transactional calculation tiers. The automated pipeline calculated bulk tier pricing using base unit rules, resulting in an invoice discrepancy. Requesting billing adjustments and manual account reviews.`;
+      } else if (catLower.includes('api') || catLower.includes('failure') || catLower.includes('timeout')) {
+        issueDescriptionText = `Sync API synchronization endpoints returned 504 Gateway Timeout responses during peak traffic hours. Payload sizes averaged 14.2 KB. Initial health indicators show heavy API thread locking and network connection lag.`;
+      } else if (catLower.includes('widget') || catLower.includes('integration') || catLower.includes('connection')) {
+        issueDescriptionText = `External API handshake failed. The host server refused the connection because authorization tokens were missing in the outbound client headers. Verified domain whitelist rules are active.`;
+      } else {
+        issueDescriptionText = `The partner brand raised an escalation regarding general scanner platform instability during high-volume diagnostic sync cycles. No custom error trace was returned. Internal monitoring logs have been compiled for review.`;
+      }
+
+      // Priority and Status badge colors
+      const priorityBadgeClass = priorityVal === 'High' ? 'badge-danger' : priorityVal === 'Medium' ? 'badge-warning' : 'badge-info';
+      const statusBadgeClass = statusVal === 'Open' ? 'badge-danger' : statusVal === 'Resolved' ? 'badge-success' : 'badge-warning';
+
+      canvas.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:24px; animation: fadeIn 0.3s ease;">
+          
+          <!-- Back navigation & Main Action Header -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+            <div style="display:flex; align-items:center; gap:16px;">
+              <button class="btn btn-secondary btn-sm flex-center" onclick="window.BotNBoltApp.navigate('tickets')" style="padding: 8px 12px; height: auto;">
+                <i data-lucide="arrow-left" style="width: 16px; height: 16px; margin-right: 6px;"></i> Back to Queue
+              </button>
+              <h3 style="margin:0; font-size:1.4rem; font-weight:800; color:var(--text-primary);">Ticket #${id}</h3>
+              <span class="badge ${statusBadgeClass}" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 9999px;">${statusVal}</span>
+            </div>
+            <div style="display:flex; gap:12px;">
+            </div>
+          </div>
+
+          <!-- Metrical Summary Panel Grid -->
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px;">
+            
+            <!-- Column 1: Ticket Info -->
+            <div class="card" style="padding: 20px; border-left: 4px solid var(--primary); display:flex; flex-direction:column; gap:12px;">
+              <h4 style="margin:0; font-size:0.95rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.05em;">Issue Identity</h4>
+              <div>
+                <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Category</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${category}</strong>
+              </div>
+              <div>
+                <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Priority Classification</span>
+                <span class="badge ${priorityBadgeClass}" style="margin-top:4px;">${priorityVal} Priority</span>
+              </div>
+              <div>
+                <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Submitted Date/Time</span>
+                <span style="font-size:0.88rem; font-weight:600; color:var(--text-primary);">${dateCreated}</span>
+              </div>
+            </div>
+
+            <!-- Column 2: Customer & Store Location -->
+            <div class="card" style="padding: 20px; border-left: 4px solid var(--success); display:flex; flex-direction:column; gap:12px;">
+              <h4 style="margin:0; font-size:0.95rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.05em;">Entity Information</h4>
+              <div>
+                <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Raised By (Customer)</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${customer}</strong>
+              </div>
+              <div>
+                <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Partner Brand / Company</span>
+                <span style="font-size:0.88rem; font-weight:600; color:var(--text-primary);">${companyName}</span>
+              </div>
+              <div>
+                <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Dealer Outlet & City</span>
+                <span style="font-size:0.88rem; font-weight:600; color:var(--text-primary);">${dealerName} (${cityLoc})</span>
+              </div>
+            </div>
+
+            <!-- Column 3: SLA & Assignment -->
+            <div class="card" style="padding: 20px; border-left: 4px solid var(--warning); display:flex; flex-direction:column; gap:12px;">
+              <h4 style="margin:0; font-size:0.95rem; font-weight:700; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.05em;">SLA & Assignment</h4>
+              <div>
+                <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Response SLA Goal</span>
+                <strong style="font-size:0.9rem; color:var(--primary);">${respTime}</strong>
+              </div>
+              <div>
+                <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Assigned Support Agent</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${assignedAgent}</strong>
+              </div>
+              <div>
+                <span style="font-size:0.75rem; color:var(--text-secondary); display:block;">Resolution Duration</span>
+                <span style="font-size:0.88rem; font-weight:600; color:var(--text-primary);">${resolTime}</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Split Details Section: Description vs Audit History Timeline -->
+          <div style="display:grid; grid-template-columns: 3fr 2fr; gap:24px;">
+            
+            <!-- Left Split: Issue Log Description and Diagnostics JSON -->
+            <div style="display:flex; flex-direction:column; gap:24px;">
+              
+              <!-- Issue Log Details -->
+              <div class="card" style="padding: 24px;">
+                <h4 style="margin:0 0 16px 0; font-size:1.1rem; font-weight:700; color:var(--text-primary);">Ticket Description & Issue Narrative</h4>
+                <p style="font-size:0.9rem; line-height:1.6; color:var(--text-secondary); margin:0;">${issueDescriptionText}</p>
+                <div style="margin-top:20px; padding: 12px; background: rgba(37,99,235,0.05); border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--primary);">
+                  <strong>Note:</strong> Initial client sync response has been flagged. Standard triage rules matched this queue automatically.
+                </div>
+              </div>
+
+              <!-- Technical System Diagnostics -->
+              <div class="card" style="padding: 24px;">
+                <h4 style="margin:0 0 16px 0; font-size:1.1rem; font-weight:700; color:var(--text-primary);">System Diagnostic Payload</h4>
+                <pre style="background:var(--bg-app); border:1px solid var(--border-color); padding:16px; border-radius:var(--radius-md); font-family:monospace; font-size:0.8rem; color:var(--text-primary); overflow-x:auto; margin:0;">{
+  "system_OS": "OS X 10.15.7 (Mac)",
+  "browser_agent": "Chrome 124.0.0.0 (zsh/shell)",
+  "API_endpoint": "https://api.botnbolt.com/v1/scans/sync",
+  "payload_size": "14.2 KB",
+  "error_code": "BB-AUTH-403",
+  "diagnostics_timestamp": "${dateCreated}",
+  "assigned_representative": "${assignedAgent}",
+  "auto_classification_priority": "${priorityVal}"
+}</pre>
+              </div>
+
+            </div>
+
+            <!-- Right Split: Interactive Audit Trail Timeline -->
+            <div class="card" style="padding: 24px;">
+              <h4 style="margin:0 0 20px 0; font-size:1.1rem; font-weight:700; color:var(--text-primary);">Ticket Audit Trail Timeline</h4>
+              <div style="display:flex; flex-direction:column; gap:20px; position:relative; padding-left:24px;">
+                
+                <!-- Center vertical line -->
+                <div style="position:absolute; left:6px; top:8px; bottom:8px; width:2px; background:var(--border-color);"></div>
+
+                <!-- Step 1 -->
+                <div style="position:relative;">
+                  <div style="position:absolute; left:-24px; top:4px; width:12px; height:12px; border-radius:50%; background:var(--primary); border:2px solid var(--bg-card); z-index:2;"></div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">10:30 AM — Ticket Created</div>
+                  <div style="font-weight:700; font-size:0.85rem; color:var(--text-primary); margin-top:2px;">Ticket Log Created</div>
+                  <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">Submitted via brand API endpoint. Ticket ID allocated.</p>
+                </div>
+
+                <!-- Step 2 -->
+                <div style="position:relative;">
+                  <div style="position:absolute; left:-24px; top:4px; width:12px; height:12px; border-radius:50%; background:var(--warning); border:2px solid var(--bg-card); z-index:2;"></div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">10:32 AM — System Classified</div>
+                  <div style="font-weight:700; font-size:0.85rem; color:var(--text-primary); margin-top:2px;">Automated Priority Triaging</div>
+                  <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">Priority auto-classified as <strong>${priorityVal}</strong> based on category classification.</p>
+                </div>
+
+                <!-- Step 3 -->
+                <div style="position:relative;">
+                  <div style="position:absolute; left:-24px; top:4px; width:12px; height:12px; border-radius:50%; background:var(--success); border:2px solid var(--bg-card); z-index:2;"></div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">10:45 AM — Agent Assigned</div>
+                  <div style="font-weight:700; font-size:0.85rem; color:var(--text-primary); margin-top:2px;">Representative Allocated</div>
+                  <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">Assigned to support executive <strong>${assignedAgent}</strong>.</p>
+                </div>
+
+                <!-- Step 4 -->
+                <div style="position:relative;">
+                  <div style="position:absolute; left:-24px; top:4px; width:12px; height:12px; border-radius:50%; background:var(--info); border:2px solid var(--bg-card); z-index:2;"></div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">10:50 AM — SLA Action</div>
+                  <div style="font-weight:700; font-size:0.85rem; color:var(--text-primary); margin-top:2px;">Response SLA Acknowledged</div>
+                  <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">First-contact SLA benchmark verified at <strong>${respTime}</strong> target.</p>
+                </div>
+
+                <!-- Step 5 (Optional conditional resolution) -->
+                ${statusVal === 'Resolved' ? `
+                  <div style="position:relative;">
+                    <div style="position:absolute; left:-24px; top:4px; width:12px; height:12px; border-radius:50%; background:var(--success); border:2px solid var(--bg-card); z-index:2;"></div>
+                    <div style="font-size:0.75rem; color:var(--success); font-weight:600;">Audit Complete</div>
+                    <div style="font-weight:700; font-size:0.85rem; color:var(--text-primary); margin-top:2px;">Status Updated: Resolved</div>
+                    <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">Marked resolved in database. Resolution logged.</p>
+                  </div>
+                ` : ''}
+
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      `;
     }
 
     destroyCharts() {
@@ -1587,7 +1831,6 @@
                 
                 <select class="bulk-actions-select" id="bulk-${tableKey}" style="${checked.length > 0 ? 'display:block;' : 'display:none;'}" onchange="window.BotNBoltApp.triggerBulkAction('${tableKey}', this.value)">
                   <option value="">Bulk Actions (${checked.length} Selected)</option>
-                  <option value="suspend">Mark Resolved</option>
                   <option value="export">Export Selected</option>
                   <option value="delete">Delete Selected</option>
                 </select>
@@ -1626,11 +1869,11 @@
                       <td colspan="12" style="text-align:center; padding: 32px; color: var(--text-secondary);">No records match your search filter.</td>
                     </tr>
                   ` : paginated.map(tkt => `
-                    <tr style="cursor:pointer;" onclick="window.BotNBoltApp.inspectTicketModal('${tkt.id}')" onmouseenter="this.style.backgroundColor='var(--bg-primary)'" onmouseleave="this.style.backgroundColor=''">
+                    <tr style="cursor:pointer;" onclick="window.BotNBoltApp.navigateToTicket('${tkt.id}')" onmouseenter="this.style.backgroundColor='var(--bg-primary)'" onmouseleave="this.style.backgroundColor=''">
                       <td style="padding-left: 24px;" onclick="event.stopPropagation();">
                         <input type="checkbox" id="chk-${tableKey}-${tkt.id}" style="width:16px; height:16px; cursor:pointer;" ${checked.includes(tkt.id) ? 'checked' : ''} onchange="window.BotNBoltApp.handleCheckboxChange('${tableKey}', '${tkt.id}', this.checked)">
                       </td>
-                      <td><code>${tkt.id}</code></td>
+                      <td onclick="event.stopPropagation();"><a href="#" style="font-weight:700; color:var(--primary); text-decoration:none;" onclick="event.preventDefault(); window.BotNBoltApp.navigateToTicket('${tkt.id}')"><code>${tkt.id}</code></a></td>
                       <td>${tkt.customerName || tkt.raisedBy || 'N/A'}</td>
                       <td>${tkt.company}</td>
                       <td>${tkt.dealer || 'N/A'}</td>
@@ -1641,7 +1884,7 @@
                       <td><span class="badge ${tkt.status === 'Open' ? 'badge-danger' : tkt.status === 'Resolved' ? 'badge-success' : 'badge-warning'}">${tkt.status}</span></td>
                       <td>${tkt.date}</td>
                       <td onclick="event.stopPropagation();">
-                        <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.inspectTicketModal('${tkt.id}')">Inspect</button>
+                        <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.navigateToTicket('${tkt.id}')">View Details</button>
                       </td>
                     </tr>
                   `).join('')}
@@ -2984,10 +3227,80 @@
         const allRowIds = filtered.map(d => d.id);
         const checked = this.state.checkedRows[tableKey] || [];
 
-        canvas.innerHTML = `
+        const totalDealers = this.state.db.companyAdmin.dealers.length;
+        const activeDealers = this.state.db.companyAdmin.dealers.filter(d => d.status === 'Active').length;
+        const suspendedDealers = this.state.db.companyAdmin.dealers.filter(d => d.status !== 'Active').length;
+
+        // Helper style for active card selection indication
+        const getActiveCardStyle = (currStatus, accentColor) => {
+          if (filterStatus === currStatus) {
+            return `box-shadow: 0 0 0 2px ${accentColor}; transform: translateY(-2px); font-weight: 700;`;
+          }
+          return '';
+        };
+
+        const dealersStatHeader = `
+          <!-- Dealers KPI Cards for Interactive Filtering -->
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">
+            
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', '')" 
+                 style="padding:16px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('', 'var(--primary)')}"
+                 onmouseenter="if('${filterStatus}' !== '') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(37,99,235,0.1)'; }" 
+                 onmouseleave="if('${filterStatus}' !== '') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Total Outlets</div>
+                  <strong style="font-size:1.4rem; color:var(--text-primary);">${totalDealers}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(37,99,235,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="store" style="color:var(--primary); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Show all registered dealer outlets</div>
+            </div>
+
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Active')" 
+                 style="padding:16px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Active', 'var(--success)')}"
+                 onmouseenter="if('${filterStatus}' !== 'Active') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'; }" 
+                 onmouseleave="if('${filterStatus}' !== 'Active') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Active Outlets</div>
+                  <strong style="font-size:1.4rem; color:var(--success);">${activeDealers}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(16,185,129,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="check-circle" style="color:var(--success); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by active dealer locations</div>
+            </div>
+
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Suspended')" 
+                 style="padding:16px; border-left:4px solid var(--danger); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(239,68,68,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Suspended', 'var(--danger)')}"
+                 onmouseenter="if('${filterStatus}' !== 'Suspended') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(239,68,68,0.1)'; }" 
+                 onmouseleave="if('${filterStatus}' !== 'Suspended') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Suspended Outlets</div>
+                  <strong style="font-size:1.4rem; color:var(--danger);">${suspendedDealers}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(239,68,68,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="alert-triangle" style="color:var(--danger); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by suspended locations</div>
+            </div>
+
+          </div>
+        `;
+
+        canvas.innerHTML = dealersStatHeader + `
           <div class="card">
             <div class="card-header">
-              <span class="card-title">Manage ${db.companyName} Dealers</span>
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <span class="card-title">Manage ${db.companyName} Dealers</span>
+                ${filterStatus ? `<span style="font-size: 0.78rem; color: var(--text-secondary);">Active Filter: <strong style="color: var(--primary); text-transform: uppercase;">${filterStatus}</strong></span>` : ''}
+              </div>
               <button class="btn btn-primary btn-sm flex-center" onclick="window.BotNBoltApp.openAddDealerModal()">
                 <i data-lucide="plus-circle"></i> Add Dealer
               </button>
@@ -3712,11 +4025,11 @@
                       <td colspan="10" style="text-align:center; padding: 32px; color: var(--text-secondary);">No records match your search filter.</td>
                     </tr>
                   ` : paginated.map(tkt => `
-                    <tr>
-                      <td style="padding-left: 24px;">
+                    <tr style="cursor:pointer;" onclick="window.BotNBoltApp.navigateToTicket('${tkt.id}')" onmouseenter="this.style.backgroundColor='var(--bg-primary)'" onmouseleave="this.style.backgroundColor=''">
+                      <td style="padding-left: 24px;" onclick="event.stopPropagation();">
                         <input type="checkbox" id="chk-${tableKey}-${tkt.id}" style="width:16px; height:16px; cursor:pointer;" ${checked.includes(tkt.id) ? 'checked' : ''} onchange="window.BotNBoltApp.handleCheckboxChange('${tableKey}', '${tkt.id}', this.checked)">
                       </td>
-                      <td><code>${tkt.id}</code></td>
+                      <td onclick="event.stopPropagation();"><a href="#" style="font-weight:700; color:var(--primary); text-decoration:none;" onclick="event.preventDefault(); window.BotNBoltApp.navigateToTicket('${tkt.id}')"><code>${tkt.id}</code></a></td>
                       <td>${tkt.dealer}</td>
                       <td>${tkt.problem}</td>
                       <td><span class="badge ${tkt.priority === 'High' ? 'badge-danger' : tkt.priority === 'Medium' ? 'badge-warning' : 'badge-info'}">${tkt.priority}</span></td>
@@ -4657,23 +4970,321 @@
         lucide.createIcons();
       } else if (menu === 'profile') {
         canvas.innerHTML = `
-          <div class="card">
-            <div class="card-header"><span class="card-title">Edit Store Configurations</span></div>
-            <div class="form-group">
-              <label class="form-label">Store Outlet Name</label>
-              <input type="text" class="form-control" value="${db.profile.storeName}">
+          <div style="display:grid; grid-template-columns: 1fr 2fr; gap: 24px; animation: fadeIn 0.3s ease;">
+            
+            <!-- Left Column: Outlet Profile Card -->
+            <div style="display:flex; flex-direction:column; gap:20px;">
+              <div class="card" style="padding: 24px; text-align: center;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%); margin: 0 auto 16px auto; display:flex; align-items:center; justify-content:center; color:white; font-size:1.8rem; font-weight:800; box-shadow: 0 4px 14px rgba(37,99,235,0.3)">
+                  ${db.storeName.substring(0, 2).toUpperCase()}
+                </div>
+                <h4 style="margin:0 0 4px 0; font-size:1.2rem; font-weight:800; color:var(--text-primary);">${db.storeName}</h4>
+                <p style="margin:0 0 16px 0; font-size:0.78rem; color:var(--text-secondary);">Outlet ID: <code style="font-weight:700; color:var(--primary);">DLR-${db.storeName.replace(/\s+/g, '-').toUpperCase()}</code></p>
+                
+                <div style="display:flex; justify-content:center; gap:8px; margin-bottom:20px;">
+                  <span class="badge badge-success" style="padding:4px 10px; font-size:0.75rem;">Online</span>
+                  <span class="badge badge-info" style="padding:4px 10px; font-size:0.75rem;">Scanner Active</span>
+                </div>
+
+                <div style="border-top:1px solid var(--border-color); padding-top:16px; text-align:left; display:flex; flex-direction:column; gap:12px; font-size:0.8rem;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--text-secondary);">Operating Region</span>
+                    <strong style="color:var(--text-primary);">${db.city}</strong>
+                  </div>
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--text-secondary);">Total Sync Scans</span>
+                    <strong style="color:var(--text-primary);">${db.kpis.totalRepairRequests.value}</strong>
+                  </div>
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="color:var(--text-secondary);">Conversion Ratio</span>
+                    <strong style="color:var(--success);">${db.kpis.ordersGenerated.value} Orders</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Stats widget -->
+              <div class="card" style="padding:20px; border-left:4px solid var(--warning);">
+                <h4 style="margin:0 0 8px 0; font-size:0.9rem; font-weight:700; color:var(--text-primary);">Terminal Configuration</h4>
+                <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
+                  Model: <strong>ScannerPro v3.2</strong><br>
+                  Firmware: <strong>v4.8.1-release</strong><br>
+                  Outbound Ports: <strong>SSL-443 Verified</strong>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Physical Address</label>
-              <input type="text" class="form-control" value="${db.profile.address}">
+
+            <!-- Right Column: Settings Form -->
+            <div class="card" style="padding: 28px;">
+              <h3 style="margin:0 0 20px 0; font-size:1.25rem; font-weight:800; color:var(--text-primary);">Outlet Configurations</h3>
+              
+              <div style="display:flex; flex-direction:column; gap:16px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                  <div class="form-group">
+                    <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.8rem;">Store Outlet Name</label>
+                    <input type="text" class="form-control" value="${db.storeName}" id="store-name-input">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.8rem;">Location City</label>
+                    <input type="text" class="form-control" value="${db.city}" id="store-city-input">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.8rem;">Store Physical Address</label>
+                  <input type="text" class="form-control" value="${db.profile ? db.profile.address || '401 Bay St., Toronto, ON M5H 2Y4' : '401 Bay St., Toronto, ON M5H 2Y4'}" id="store-addr-input">
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                  <div class="form-group">
+                    <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.8rem;">Operational Hours</label>
+                    <input type="text" class="form-control" value="${db.profile ? db.profile.hours || 'Mon-Sat: 08:00 AM - 08:00 PM' : 'Mon-Sat: 08:00 AM - 08:00 PM'}" id="store-hours-input">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.8rem;">API Sync Limit (Hourly)</label>
+                    <input type="number" class="form-control" value="250" readonly style="background:var(--bg-app); cursor:not-allowed;">
+                  </div>
+                </div>
+
+                <div style="border-top:1px solid var(--border-color); margin-top:12px; padding-top:16px;">
+                  <h4 style="margin:0 0 12px 0; font-size:0.95rem; font-weight:700; color:var(--text-primary);">Preferences & Notifications</h4>
+                  
+                  <div style="display:flex; flex-direction:column; gap:12px;">
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
+                      <input type="checkbox" checked style="width:16px; height:16px; cursor:pointer;">
+                      Enable email reports for failed AI scan analysis
+                    </label>
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
+                      <input type="checkbox" checked style="width:16px; height:16px; cursor:pointer;">
+                      Sync local inventory database with material recommendations automatically
+                    </label>
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
+                      <input type="checkbox" style="width:16px; height:16px; cursor:pointer;">
+                      Low Stock Alerts (Push notification when stock is below 10 units)
+                    </label>
+                  </div>
+                </div>
+
+                <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:12px;">
+                  <button class="btn btn-secondary" onclick="window.BotNBoltApp.navigate('overview')" style="padding:10px 18px;">Cancel</button>
+                  <button class="btn btn-primary" onclick="alert('Store configuration successfully synchronized and saved!')" style="padding:10px 22px;">Save Configurations</button>
+                </div>
+              </div>
+
             </div>
-            <div class="form-group">
-              <label class="form-label">Operational Hours</label>
-              <input type="text" class="form-control" value="${db.profile.hours}">
-            </div>
-            <button class="btn btn-primary" onclick="alert('Store profile updated')">Save Changes</button>
+
           </div>
         `;
+      } else if (menu === 'tickets') {
+        const tableKey = 'tickets_dlr';
+        const searchQuery = (this.state.searchQueries[tableKey] || '').toLowerCase();
+        const pageSize = this.state.pageSizes[tableKey] || 5;
+        const pageIndex = this.state.pageIndices[tableKey] || 0;
+
+        const filters = this.state.dropdownFilters[tableKey] || {};
+        const filterPriority = filters.priority || '';
+        const filterStatus = filters.status || '';
+
+        // Safety fallback checks
+        if (!this.state.db.supportAdmin) {
+          this.state.db.supportAdmin = JSON.parse(JSON.stringify(window.BotNBoltMockData.supportAdmin || {}));
+        }
+        if (!this.state.db.supportAdmin.tickets) {
+          this.state.db.supportAdmin.tickets = JSON.parse(JSON.stringify((window.BotNBoltMockData && window.BotNBoltMockData.supportAdmin && window.BotNBoltMockData.supportAdmin.tickets) || []));
+        }
+
+        // Get tickets specifically raised by this dealer outlet
+        const myTickets = this.state.db.supportAdmin.tickets.filter(t => t.dealer === db.storeName);
+
+        // Calculate counts
+        const totalCount = myTickets.length;
+        const openCount = myTickets.filter(t => t.status === 'Open').length;
+        const resolvedCount = myTickets.filter(t => t.status === 'Resolved').length;
+
+        // Filter rows
+        const filtered = myTickets.filter(tkt => {
+          const matchesSearch = tkt.id.toLowerCase().includes(searchQuery) ||
+            (tkt.issueType || tkt.problem || '').toLowerCase().includes(searchQuery) ||
+            (tkt.assignedTo || tkt.assigned || '').toLowerCase().includes(searchQuery) ||
+            tkt.status.toLowerCase().includes(searchQuery);
+
+          const matchesPriority = !filterPriority || tkt.priority === filterPriority;
+          const matchesStatus = !filterStatus || tkt.status === filterStatus;
+
+          return matchesSearch && matchesPriority && matchesStatus;
+        });
+
+        // Paginate rows
+        const paginated = filtered.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+        const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+        const allRowIds = filtered.map(t => t.id);
+        const checked = this.state.checkedRows[tableKey] || [];
+
+        // Helper style for active card selection indication
+        const getActiveCardStyle = (currStatus, accentColor) => {
+          if (filterStatus === currStatus) {
+            return `box-shadow: 0 0 0 2px ${accentColor}; transform: translateY(-2px); font-weight: 700;`;
+          }
+          return '';
+        };
+
+        canvas.innerHTML = `
+          <!-- KPI Cards for Dealer Support Tickets -->
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">
+            
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', '')" 
+                 style="padding:16px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('', 'var(--primary)')}"
+                 onmouseenter="if('${filterStatus}' !== '') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(37,99,235,0.1)'; }" 
+                 onmouseleave="if('${filterStatus}' !== '') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Total Tickets</div>
+                  <strong style="font-size:1.4rem; color:var(--text-primary);">${totalCount}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(37,99,235,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="ticket" style="color:var(--primary); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Show all tickets raised by this outlet</div>
+            </div>
+
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Open')" 
+                 style="padding:16px; border-left:4px solid var(--danger); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(239,68,68,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Open', 'var(--danger)')}"
+                 onmouseenter="if('${filterStatus}' !== 'Open') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(239,68,68,0.1)'; }" 
+                 onmouseleave="if('${filterStatus}' !== 'Open') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Open Tickets</div>
+                  <strong style="font-size:1.4rem; color:var(--danger);">${openCount}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(239,68,68,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="alert-circle" style="color:var(--danger); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by active open support cases</div>
+            </div>
+
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Resolved')" 
+                 style="padding:16px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Resolved', 'var(--success)')}"
+                 onmouseenter="if('${filterStatus}' !== 'Resolved') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'; }" 
+                 onmouseleave="if('${filterStatus}' !== 'Resolved') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Resolved</div>
+                  <strong style="font-size:1.4rem; color:var(--success);">${resolvedCount}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(16,185,129,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="check-circle" style="color:var(--success); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by resolved cases</div>
+            </div>
+
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <span class="card-title">Support Tickets History</span>
+                ${filterStatus ? `<span style="font-size: 0.78rem; color: var(--text-secondary);">Active Filter: <strong style="color: var(--primary); text-transform: uppercase;">${filterStatus}</strong></span>` : ''}
+              </div>
+            </div>
+
+            <!-- Table Actions Row -->
+            <div class="table-header-actions" style="padding:0 24px; margin-top:10px;">
+              <div class="table-actions-left">
+                <div class="search-wrapper">
+                  <i data-lucide="search"></i>
+                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search my tickets..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
+                </div>
+
+                <!-- Priority Filter -->
+                <select class="form-control dropdown-filter" style="width:130px; font-size:0.85rem; padding:4px 8px; height:32px;" onchange="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'priority', this.value)">
+                  <option value="">All Priorities</option>
+                  <option value="High" ${filterPriority === 'High' ? 'selected' : ''}>High</option>
+                  <option value="Medium" ${filterPriority === 'Medium' ? 'selected' : ''}>Medium</option>
+                  <option value="Low" ${filterPriority === 'Low' ? 'selected' : ''}>Low</option>
+                </select>
+
+                <!-- Bulk Actions -->
+                <select class="bulk-actions-select" id="bulk-${tableKey}" style="${checked.length > 0 ? 'display:block;' : 'display:none;'}" onchange="window.BotNBoltApp.triggerBulkAction('${tableKey}', this.value)">
+                  <option value="">Bulk Actions (${checked.length} Selected)</option>
+                  <option value="export">Export Selected</option>
+                </select>
+              </div>
+              <div class="table-actions-right">
+                <button class="btn btn-secondary btn-sm flex-center" onclick="window.BotNBoltApp.exportToCsv('Dealer_My_Tickets.csv', ['Ticket ID', 'Issue', 'Priority', 'Assigned Agent', 'SLA', 'Status', 'Date'], ${JSON.stringify(filtered.map(t => [t.id, t.issueType || t.problem, t.priority, t.assignedTo || t.assigned, t.responseTime, t.status, t.date])).replace(/"/g, '&quot;')})" title="Export List to CSV">
+                  <i data-lucide="download"></i> Export CSV
+                </button>
+              </div>
+            </div>
+
+            <!-- Table content -->
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width:40px; padding-left:24px;">
+                      <input type="checkbox" id="chk-all-${tableKey}" style="width:16px; height:16px; cursor:pointer;" ${checked.length === allRowIds.length && allRowIds.length > 0 ? 'checked' : ''} onchange="window.BotNBoltApp.handleSelectAllChange('${tableKey}', this.checked, ${JSON.stringify(allRowIds).replace(/"/g, '&quot;')})">
+                    </th>
+                    <th>Ticket ID</th>
+                    <th>Issue Category</th>
+                    <th>Priority</th>
+                    <th>Assigned Support Agent</th>
+                    <th>Response SLA</th>
+                    <th>Status</th>
+                    <th>Date Raised</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${paginated.length === 0 ? `
+                    <tr>
+                      <td colspan="9" style="text-align:center; padding:32px; color:var(--text-secondary);">No support tickets logged.</td>
+                    </tr>
+                  ` : paginated.map(tkt => `
+                    <tr style="cursor:pointer;" onclick="window.BotNBoltApp.navigateToTicket('${tkt.id}')" onmouseenter="this.style.backgroundColor='var(--bg-primary)'" onmouseleave="this.style.backgroundColor=''">
+                      <td style="padding-left: 24px;" onclick="event.stopPropagation();">
+                        <input type="checkbox" id="chk-${tableKey}-${tkt.id}" style="width:16px; height:16px; cursor:pointer;" ${checked.includes(tkt.id) ? 'checked' : ''} onchange="window.BotNBoltApp.handleCheckboxChange('${tableKey}', '${tkt.id}', this.checked)">
+                      </td>
+                      <td onclick="event.stopPropagation();"><a href="#" style="font-weight:700; color:var(--primary); text-decoration:none;" onclick="event.preventDefault(); window.BotNBoltApp.navigateToTicket('${tkt.id}')"><code>${tkt.id}</code></a></td>
+                      <td><strong>${tkt.issueType || tkt.problem || 'System Issue'}</strong></td>
+                      <td><span class="badge ${tkt.priority === 'High' ? 'badge-danger' : tkt.priority === 'Medium' ? 'badge-warning' : 'badge-info'}">${tkt.priority}</span></td>
+                      <td><strong>${tkt.assignedTo || tkt.assigned || 'Unassigned'}</strong></td>
+                      <td>${tkt.responseTime}</td>
+                      <td><span class="badge ${tkt.status === 'Open' ? 'badge-danger' : tkt.status === 'Resolved' ? 'badge-success' : 'badge-warning'}">${tkt.status}</span></td>
+                      <td>${tkt.date}</td>
+                      <td onclick="event.stopPropagation();">
+                        <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.navigateToTicket('${tkt.id}')">View Details</button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Table Pagination Footer -->
+            <div class="table-footer-pagination">
+              <div>
+                Showing <strong>${filtered.length === 0 ? 0 : pageIndex * pageSize + 1}</strong> to 
+                <strong>${Math.min((pageIndex + 1) * pageSize, filtered.length)}</strong> of 
+                <strong>${filtered.length}</strong> support cases
+              </div>
+              <div class="pagination-controls">
+                <span style="margin-right:8px;">Rows per page:</span>
+                <select class="rows-selector" style="margin-right:16px;" onchange="window.BotNBoltApp.handleTablePageSizeChange('${tableKey}', this.value)">
+                  <option value="5" ${pageSize === 5 ? 'selected' : ''}>5</option>
+                  <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
+                  <option value="25" ${pageSize === 25 ? 'selected' : ''}>25</option>
+                </select>
+                <button class="pagination-btn" ${pageIndex === 0 ? 'disabled' : ''} onclick="window.BotNBoltApp.handleTablePageChange('${tableKey}', ${pageIndex - 1})" title="Previous Page"><i data-lucide="chevron-left" style="width:14px; height:14px;"></i></button>
+                <span style="font-weight:600; margin:0 8px;">Page ${pageIndex + 1} of ${totalPages}</span>
+                <button class="pagination-btn" ${pageIndex >= totalPages - 1 ? 'disabled' : ''} onclick="window.BotNBoltApp.handleTablePageChange('${tableKey}', ${pageIndex + 1})" title="Next Page"><i data-lucide="chevron-right" style="width:14px; height:14px;"></i></button>
+              </div>
+            </div>
+
+          </div>
+        `;
+        lucide.createIcons();
       }
     }
 
@@ -5169,7 +5780,6 @@
                 
                 <select class="bulk-actions-select" id="bulk-${tableKey}" style="${checked.length > 0 ? 'display:block;' : 'display:none;'}" onchange="window.BotNBoltApp.triggerBulkAction('${tableKey}', this.value)">
                   <option value="">Bulk Actions (${checked.length} Selected)</option>
-                  <option value="suspend">Mark Resolved</option>
                   <option value="export">Export Selected</option>
                 </select>
               </div>
@@ -5206,28 +5816,23 @@
                       <td colspan="11" style="text-align:center; padding: 32px; color: var(--text-secondary);">No records match your search filter.</td>
                     </tr>
                   ` : paginated.map(tkt => `
-                    <tr>
-                      <td style="padding-left: 24px;">
+                    <tr style="cursor:pointer;" onclick="window.BotNBoltApp.navigateToTicket('${tkt.id}')" onmouseenter="this.style.backgroundColor='var(--bg-primary)'" onmouseleave="this.style.backgroundColor=''">
+                      <td style="padding-left: 24px;" onclick="event.stopPropagation();">
                         <input type="checkbox" id="chk-${tableKey}-${tkt.id}" style="width:16px; height:16px; cursor:pointer;" ${checked.includes(tkt.id) ? 'checked' : ''} onchange="window.BotNBoltApp.handleCheckboxChange('${tableKey}', '${tkt.id}', this.checked)">
                       </td>
-                      <td><code>${tkt.id}</code></td>
+                      <td onclick="event.stopPropagation();"><a href="#" style="font-weight:700; color:var(--primary); text-decoration:none;" onclick="event.preventDefault(); window.BotNBoltApp.navigateToTicket('${tkt.id}')"><code>${tkt.id}</code></a></td>
                       <td><strong>${tkt.issueType}</strong></td>
                       <td>${tkt.raisedBy}</td>
                       <td>${tkt.dealer}</td>
                       <td>${tkt.city || 'N/A'}</td>
                       <td><span class="badge ${tkt.priority === 'High' ? 'badge-danger' : 'badge-warning'}">${tkt.priority}</span></td>
                       <td>
-                        <select class="form-control" style="width:140px; padding: 4px 8px; font-size: 0.8rem;" onchange="window.BotNBoltApp.assignTicket('${tkt.id}', this.value)">
-                          <option value="Unassigned" ${tkt.assignedTo === 'Unassigned' ? 'selected' : ''}>Unassigned</option>
-                          ${window.BotNBoltMockData.supportAgents.map(ag => `
-                            <option value="${ag}" ${tkt.assignedTo === ag ? 'selected' : ''}>${ag}</option>
-                          `).join('')}
-                        </select>
+                        ${tkt.assignedTo === 'Unassigned' ? `<span style="color:var(--text-secondary); font-style:italic;">Unassigned</span>` : `<strong>${tkt.assignedTo}</strong>`}
                       </td>
                       <td>${tkt.responseTime}</td>
                       <td><span class="badge ${tkt.status === 'Open' ? 'badge-danger' : tkt.status === 'Resolved' ? 'badge-success' : 'badge-warning'}">${tkt.status}</span></td>
-                      <td>
-                        ${tkt.status !== 'Resolved' ? `<button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.resolveTicket('${tkt.id}')">Resolve</button>` : 'N/A'}
+                      <td onclick="event.stopPropagation();">
+                        <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.navigateToTicket('${tkt.id}')">View Details</button>
                       </td>
                     </tr>
                   `).join('')}
@@ -5264,14 +5869,23 @@
         const pageSize = this.state.pageSizes[tableKey] || 5;
         const pageIndex = this.state.pageIndices[tableKey] || 0;
 
+        const filters = this.state.dropdownFilters[tableKey] || {};
+        const filterStatus = filters.status || '';
+
         // Filter rows
-        const filtered = db.aiErrorReports.filter(err =>
-          err.id.toLowerCase().includes(searchQuery) ||
-          err.wrongDetectionType.toLowerCase().includes(searchQuery) ||
-          err.expectedResult.toLowerCase().includes(searchQuery) ||
-          err.reportedBy.toLowerCase().includes(searchQuery) ||
-          err.status.toLowerCase().includes(searchQuery)
-        );
+        const filtered = db.aiErrorReports.filter(err => {
+          const matchesSearch = err.id.toLowerCase().includes(searchQuery) ||
+            err.wrongDetectionType.toLowerCase().includes(searchQuery) ||
+            err.expectedResult.toLowerCase().includes(searchQuery) ||
+            err.reportedBy.toLowerCase().includes(searchQuery) ||
+            err.status.toLowerCase().includes(searchQuery);
+
+          const matchesStatus = !filterStatus || 
+            (filterStatus === 'Pending' && (err.status === 'Pending' || err.status === 'In Review')) ||
+            (filterStatus === 'Resolved' && err.status === 'Resolved');
+
+          return matchesSearch && matchesStatus;
+        });
 
         // Paginate rows
         const paginated = filtered.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
@@ -5279,9 +5893,82 @@
         const allRowIds = filtered.map(e => e.id);
         const checked = this.state.checkedRows[tableKey] || [];
 
-        canvas.innerHTML = `
+        // Calculate counts
+        const totalErrors = db.aiErrorReports.length;
+        const pendingErrors = db.aiErrorReports.filter(e => e.status === 'Pending' || e.status === 'In Review').length;
+        const resolvedErrors = db.aiErrorReports.filter(e => e.status === 'Resolved').length;
+
+        // Helper style for active card selection indication
+        const getActiveCardStyle = (currStatus, accentColor) => {
+          if (filterStatus === currStatus) {
+            return `box-shadow: 0 0 0 2px ${accentColor}; transform: translateY(-2px); font-weight: 700;`;
+          }
+          return '';
+        };
+
+        const aiErrorsStatHeader = `
+          <!-- AI Errors KPI Cards for Interactive Filtering -->
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">
+            
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', '')" 
+                 style="padding:16px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('', 'var(--primary)')}"
+                 onmouseenter="if('${filterStatus}' !== '') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(37,99,235,0.1)'; }" 
+                 onmouseleave="if('${filterStatus}' !== '') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Total Reports</div>
+                  <strong style="font-size:1.4rem; color:var(--text-primary);">${totalErrors}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(37,99,235,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="cpu" style="color:var(--primary); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Show all AI estimation complaints</div>
+            </div>
+
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Pending')" 
+                 style="padding:16px; border-left:4px solid var(--warning); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(245,158,11,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Pending', 'var(--warning)')}"
+                 onmouseenter="if('${filterStatus}' !== 'Pending') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(245,158,11,0.1)'; }" 
+                 onmouseleave="if('${filterStatus}' !== 'Pending') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Pending / In Review</div>
+                  <strong style="font-size:1.4rem; color:var(--warning);">${pendingErrors}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(245,158,11,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="alert-triangle" style="color:var(--warning); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by active pending review issues</div>
+            </div>
+
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Resolved')" 
+                 style="padding:16px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Resolved', 'var(--success)')}"
+                 onmouseenter="if('${filterStatus}' !== 'Resolved') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'; }" 
+                 onmouseleave="if('${filterStatus}' !== 'Resolved') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Resolved Reports</div>
+                  <strong style="font-size:1.4rem; color:var(--success);">${resolvedErrors}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(16,185,129,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="check-circle" style="color:var(--success); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by vetted resolved error reports</div>
+            </div>
+
+          </div>
+        `;
+
+        canvas.innerHTML = aiErrorsStatHeader + `
           <div class="card">
-            <div class="card-header"><span class="card-title">Incorrect AI Estimation Reports (Vetting Panel)</span></div>
+            <div class="card-header">
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <span class="card-title">Incorrect AI Estimation Reports (Vetting Panel)</span>
+                ${filterStatus ? `<span style="font-size: 0.78rem; color: var(--text-secondary);">Active Filter: <strong style="color: var(--primary); text-transform: uppercase;">${filterStatus}</strong></span>` : ''}
+              </div>
+            </div>
             
             <!-- Table Header Action Controls -->
             <div class="table-header-actions" style="padding: 0 24px; margin-top: 10px;">
@@ -5565,6 +6252,7 @@
         const filters = this.state.dropdownFilters[tableKey] || {};
         const filterCompany = filters.company || '';
         const filterCity = filters.city || '';
+        const filterAlert = filters.alert || '';
 
         // Filter rows
         const filtered = db.dealerSupport.filter(dl => {
@@ -5573,8 +6261,13 @@
 
           const matchesCompany = !filterCompany || dl.dealerName.includes(filterCompany);
           const matchesCity = !filterCity || dl.city === filterCity;
+          
+          const totalIssues = (dl.loginProblems || 0) + (dl.aiComplaints || 0) + (dl.customerComplaints || 0);
+          const matchesAlert = !filterAlert ||
+            (filterAlert === 'alert' && totalIssues > 3) ||
+            (filterAlert === 'normal' && totalIssues <= 3);
 
-          return matchesSearch && matchesCompany && matchesCity;
+          return matchesSearch && matchesCompany && matchesCity && matchesAlert;
         });
 
         // Paginate rows
@@ -5583,9 +6276,82 @@
         const allRowIds = filtered.map(d => d.dealerName);
         const checked = this.state.checkedRows[tableKey] || [];
 
-        canvas.innerHTML = `
+        // Calculate counts
+        const totalTerminals = db.dealerSupport.length;
+        const alertedTerminals = db.dealerSupport.filter(dl => ((dl.loginProblems || 0) + (dl.aiComplaints || 0) + (dl.customerComplaints || 0)) > 3).length;
+        const normalTerminals = db.dealerSupport.filter(dl => ((dl.loginProblems || 0) + (dl.aiComplaints || 0) + (dl.customerComplaints || 0)) <= 3).length;
+
+        // Helper style for active card selection indication
+        const getActiveCardStyle = (currAlert, accentColor) => {
+          if (filterAlert === currAlert) {
+            return `box-shadow: 0 0 0 2px ${accentColor}; transform: translateY(-2px); font-weight: 700;`;
+          }
+          return '';
+        };
+
+        const diagStatHeader = `
+          <!-- Diagnostics KPI Cards for Interactive Filtering -->
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">
+            
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'alert', '')" 
+                 style="padding:16px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('', 'var(--primary)')}"
+                 onmouseenter="if('${filterAlert}' !== '') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(37,99,235,0.1)'; }" 
+                 onmouseleave="if('${filterAlert}' !== '') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Total Terminals</div>
+                  <strong style="font-size:1.4rem; color:var(--text-primary);">${totalTerminals}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(37,99,235,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="store" style="color:var(--primary); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Show all monitored dealer outlets</div>
+            </div>
+
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'alert', 'alert')" 
+                 style="padding:16px; border-left:4px solid var(--danger); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(239,68,68,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('alert', 'var(--danger)')}"
+                 onmouseenter="if('${filterAlert}' !== 'alert') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(239,68,68,0.1)'; }" 
+                 onmouseleave="if('${filterAlert}' !== 'alert') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Critical Alerts</div>
+                  <strong style="font-size:1.4rem; color:var(--danger);">${alertedTerminals}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(239,68,68,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="alert-triangle" style="color:var(--danger); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by outlets with >3 errors</div>
+            </div>
+
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'alert', 'normal')" 
+                 style="padding:16px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('normal', 'var(--success)')}"
+                 onmouseenter="if('${filterAlert}' !== 'normal') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'; }" 
+                 onmouseleave="if('${filterAlert}' !== 'normal') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Normal Terminals</div>
+                  <strong style="font-size:1.4rem; color:var(--success);">${normalTerminals}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(16,185,129,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="check-circle" style="color:var(--success); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by healthy terminal status</div>
+            </div>
+
+          </div>
+        `;
+
+        canvas.innerHTML = diagStatHeader + `
           <div class="card">
-            <div class="card-header"><span class="card-title">Outlet Terminal Diagnostics</span></div>
+            <div class="card-header">
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <span class="card-title">Outlet Terminal Diagnostics</span>
+                ${filterAlert ? `<span style="font-size: 0.78rem; color: var(--text-secondary);">Active Filter: <strong style="color: var(--primary); text-transform: uppercase;">${filterAlert}</strong></span>` : ''}
+              </div>
+            </div>
             
             <!-- Table Header Action Controls -->
             <div class="table-header-actions" style="padding: 0 24px; margin-top: 10px;">
@@ -5698,28 +6464,50 @@
               <span class="card-title">Live Hardware Services & Health Statuses</span>
             </div>
             
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 24px;">
-              <div class="card" style="padding:16px;">
-                <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary);">Core Backend Server</div>
-                <div style="display:flex; align-items:center; margin-top:8px;">
-                  <span class="pulse-light success"></span>
-                  <strong>Online & Healthy (99.96%)</strong>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">
+              
+              <div class="card kpi-card-gradient" style="padding:16px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.05) 100%); cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 24px rgba(16,185,129,0.15)'" onmouseleave="this.style.transform=''; this.style.boxShadow=''">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Core API Backend</div>
+                    <strong style="font-size:1.4rem; color:var(--success);">99.96% Uptime</strong>
+                  </div>
+                  <div class="kpi-icon-container" style="background: rgba(16,185,129,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                    <i data-lucide="server" style="color:var(--success); width:16px; height:16px;"></i>
+                  </div>
+                </div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px; display:flex; align-items:center; gap:6px;">
+                  <span class="pulse-light success" style="width:8px; height:8px; border-radius:50%; background:var(--success); display:inline-block; box-shadow:0 0 8px var(--success);"></span>
+                  Online & fully operational
                 </div>
               </div>
-              <div class="card" style="padding:16px;">
-                <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary);">AI Estimation API Model</div>
-                <div style="display:flex; align-items:center; margin-top:8px;">
-                  <span class="pulse-light success"></span>
-                  <strong>Active (Bumper V4.2)</strong>
+
+              <div class="card kpi-card-gradient" style="padding:16px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.05) 100%); cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 24px rgba(37,99,235,0.15)'" onmouseleave="this.style.transform=''; this.style.boxShadow=''">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Server Hardware Load</div>
+                    <strong style="font-size:1.4rem; color:var(--primary);">32% CPU / 64% RAM</strong>
+                  </div>
+                  <div class="kpi-icon-container" style="background: rgba(37,99,235,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                    <i data-lucide="activity" style="color:var(--primary); width:16px; height:16px;"></i>
+                  </div>
                 </div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Load is within normal operating levels</div>
               </div>
-              <div class="card" style="padding:16px;">
-                <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary);">Image Processing Workers</div>
-                <div style="display:flex; align-items:center; margin-top:8px;">
-                  <span class="pulse-light success"></span>
-                  <strong>Active (12 workers)</strong>
+
+              <div class="card kpi-card-gradient" style="padding:16px; border-left:4px solid var(--warning); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(245,158,11,0.05) 100%); cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 24px rgba(245,158,11,0.15)'" onmouseleave="this.style.transform=''; this.style.boxShadow=''">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Active Client Terminals</div>
+                    <strong style="font-size:1.4rem; color:var(--warning);">342 Active Nodes</strong>
+                  </div>
+                  <div class="kpi-icon-container" style="background: rgba(245,158,11,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                    <i data-lucide="users" style="color:var(--warning); width:16px; height:16px;"></i>
+                  </div>
                 </div>
+                <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">12 image workers online</div>
               </div>
+
             </div>
           </div>
 
@@ -6077,143 +6865,7 @@
       }
     }
 
-    inspectTicketModal(id) {
-      const tkt = this.state.db.supportAdmin.tickets.find(t => t.id === id);
-      if (!tkt) {
-        alert('Ticket not found!');
-        return;
-      }
 
-      const body = `
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; font-size:0.85rem; max-height:480px; overflow-y:auto; padding:5px;">
-          <!-- Left Column: Details & Update Parameters -->
-          <div style="border-right:1px solid var(--border-color); padding-right:20px;">
-            <div style="margin-bottom:14px;">
-              <span style="font-weight:700; color:var(--text-secondary); text-transform:uppercase; font-size:0.7rem; display:block; margin-bottom:4px;">Ticket ID</span>
-              <code style="font-size:0.95rem; font-weight:700; color:var(--primary);">${tkt.id}</code>
-            </div>
-            
-            <div style="margin-bottom:14px;">
-              <span style="font-weight:700; color:var(--text-secondary); text-transform:uppercase; font-size:0.7rem; display:block; margin-bottom:4px;">Customer Name</span>
-              <strong style="font-size:0.9rem; color:var(--text-primary);">${tkt.customerName || tkt.raisedBy || 'N/A'}</strong>
-            </div>
-
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
-              <div>
-                <span style="font-weight:700; color:var(--text-secondary); text-transform:uppercase; font-size:0.7rem; display:block; margin-bottom:4px;">Company</span>
-                <span style="font-weight:600; color:var(--text-primary);">${tkt.company}</span>
-              </div>
-              <div>
-                <span style="font-weight:700; color:var(--text-secondary); text-transform:uppercase; font-size:0.7rem; display:block; margin-bottom:4px;">Dealer</span>
-                <span style="font-weight:600; color:var(--text-primary);">${tkt.dealer || 'N/A'}</span>
-              </div>
-            </div>
-
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
-              <div>
-                <span style="font-weight:700; color:var(--text-secondary); text-transform:uppercase; font-size:0.7rem; display:block; margin-bottom:4px;">Category</span>
-                <span style="font-weight:600; color:var(--text-primary);">${tkt.issueType}</span>
-              </div>
-              <div>
-                <span style="font-weight:700; color:var(--text-secondary); text-transform:uppercase; font-size:0.7rem; display:block; margin-bottom:4px;">Created</span>
-                <span style="font-weight:600; color:var(--text-primary);">${tkt.date}</span>
-              </div>
-            </div>
-
-            <hr style="border:0; border-top:1px solid var(--border-color); margin:16px 0;">
-
-            <!-- Form fields for updating -->
-            <div class="form-group" style="margin-bottom:12px;">
-              <label class="form-label" style="font-weight:700; color:var(--text-secondary); font-size:0.7rem; text-transform:uppercase; margin-bottom:4px;">Priority</label>
-              <select id="editTktPriority" class="form-control" style="height:32px; font-size:0.85rem; padding:4px 8px;">
-                <option value="Low" ${tkt.priority === 'Low' ? 'selected' : ''}>Low</option>
-                <option value="Medium" ${tkt.priority === 'Medium' ? 'selected' : ''}>Medium</option>
-                <option value="High" ${tkt.priority === 'High' ? 'selected' : ''}>High</option>
-              </select>
-            </div>
-
-            <div class="form-group" style="margin-bottom:12px;">
-              <label class="form-label" style="font-weight:700; color:var(--text-secondary); font-size:0.7rem; text-transform:uppercase; margin-bottom:4px;">Status</label>
-              <select id="editTktStatus" class="form-control" style="height:32px; font-size:0.85rem; padding:4px 8px;">
-                <option value="Open" ${tkt.status === 'Open' ? 'selected' : ''}>Open</option>
-                <option value="In Progress" ${tkt.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                <option value="Resolved" ${tkt.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
-              </select>
-            </div>
-
-            <div class="form-group" style="margin-bottom:12px;">
-              <label class="form-label" style="font-weight:700; color:var(--text-secondary); font-size:0.7rem; text-transform:uppercase; margin-bottom:4px;">Assigned Support Agent</label>
-              <select id="editTktAssigned" class="form-control" style="height:32px; font-size:0.85rem; padding:4px 8px;">
-                <option value="Unassigned" ${tkt.assignedTo === 'Unassigned' ? 'selected' : ''}>Unassigned</option>
-                ${this.state.db.supportAgents.map(agent => `
-                  <option value="${agent}" ${tkt.assignedTo === agent ? 'selected' : ''}>${agent}</option>
-                `).join('')}
-              </select>
-            </div>
-          </div>
-
-          <!-- Right Column: Conversation History & Replies -->
-          <div style="display:flex; flex-direction:column; justify-content:space-between; height:100%;">
-            <div>
-              <span style="font-weight:700; color:var(--text-secondary); text-transform:uppercase; font-size:0.7rem; display:block; margin-bottom:10px;">Ticket Thread</span>
-              <div style="background:var(--bg-primary); border-radius:10px; padding:12px; margin-bottom:12px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:0.75rem;">
-                  <strong style="color:var(--text-primary);">${tkt.customerName || tkt.raisedBy} (Customer)</strong>
-                  <span style="color:var(--text-secondary);">${tkt.date}</span>
-                </div>
-                <div style="color:var(--text-primary); font-size:0.82rem; line-height:1.4;">
-                  Hello Support, we are experiencing an issue regarding: <strong>${tkt.issueType}</strong>. Please investigate this as soon as possible.
-                </div>
-              </div>
-
-              ${tkt.status !== 'Open' ? `
-                <div style="background:rgba(59,130,246,0.06); border:1px solid rgba(59,130,246,0.15); border-radius:10px; padding:12px; margin-bottom:12px;">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:0.75rem;">
-                    <strong style="color:#3b82f6;">${tkt.assignedTo} (Support)</strong>
-                    <span style="color:var(--text-secondary);">Response Time: ${tkt.responseTime}</span>
-                  </div>
-                  <div style="color:var(--text-primary); font-size:0.82rem; line-height:1.4;">
-                    Ticket marked as <strong>${tkt.status}</strong>. Agent assigned and working on solution details.
-                  </div>
-                </div>
-              ` : ''}
-            </div>
-
-            <div style="margin-top:16px;">
-              <label class="form-label" style="font-weight:700; color:var(--text-secondary); font-size:0.7rem; text-transform:uppercase; margin-bottom:6px; display:block;">Send Reply / Add Note</label>
-              <textarea id="editTktReply" class="form-control" style="font-size:0.82rem; min-height:80px; resize:none;" placeholder="Type response message here..."></textarea>
-            </div>
-          </div>
-        </div>
-      `;
-
-      const footer = `
-        <button class="btn btn-secondary" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
-        <button class="btn btn-primary" onclick="window.BotNBoltApp.saveTicketDetails('${tkt.id}')">Save Changes</button>
-      `;
-
-      this.showModal(`Ticket Inspection: ${tkt.id}`, body, footer);
-    }
-
-    saveTicketDetails(id) {
-      const tkt = this.state.db.supportAdmin.tickets.find(t => t.id === id);
-      if (tkt) {
-        tkt.priority = document.getElementById('editTktPriority').value;
-        tkt.status = document.getElementById('editTktStatus').value;
-        tkt.assignedTo = document.getElementById('editTktAssigned').value;
-
-        const replyText = document.getElementById('editTktReply').value.trim();
-        if (replyText) {
-          tkt.responseTime = 'Under 5 min';
-          alert(`Reply successfully submitted:\n"${replyText}"`);
-        }
-
-        this.saveState();
-        this.closeModalForce();
-        this.renderCurrentView();
-        alert(`Ticket ${tkt.id} updated successfully.`);
-      }
-    }
     handleErrorFilterChange(filterValue) {
       this.state.errorFilter = filterValue;
       this.renderCurrentView();
