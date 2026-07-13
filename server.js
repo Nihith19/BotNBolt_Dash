@@ -6,7 +6,7 @@ const server = http.createServer((req, res) => {
   let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url.split('?')[0]);
   const extname = path.extname(filePath);
   let contentType = 'text/html';
-  
+
   if (extname === '.js') contentType = 'text/javascript';
   else if (extname === '.css') contentType = 'text/css';
   else if (extname === '.json') contentType = 'application/json';
@@ -30,6 +30,6 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(8000, () => {
-  console.log('Server running at http://localhost:8000/');
+server.listen(8001, () => {
+  console.log('Server running at http://localhost:8001/');
 });
