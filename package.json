@@ -1,0 +1,10 @@
+{
+  "name": "botnbolt-dashboard",
+  "version": "1.0.0",
+  "description": "BotNBolt Multi-Role Frontend Dashboard Design",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "dependencies": {}
+}
