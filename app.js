@@ -77,7 +77,8 @@
         pageIndices: {},
         checkedRows: {},
         selectedCompanyId: null,
-        selectedDealerId: null
+        selectedDealerId: null,
+        selectedCategory: 'Repair and Analyse'
       };
 
       this.init();
@@ -124,6 +125,244 @@
 
       // Populate Sidebar & Render Page
       this.switchRole(this.state.activeRole);
+    }
+
+    getCompanyCategory(companyName) {
+      const name = (companyName || '').toLowerCase();
+      if (name.includes('home hardware') || name.includes('bmr group') || name.includes('bmr')) {
+        return 'Repair and Analyse';
+      }
+      if (name.includes('totten')) {
+        return 'Build';
+      }
+      if (name.includes('depot') || name.includes('rona')) {
+        return 'Renovation';
+      }
+      return 'Repair and Analyse';
+    }
+
+    renderCategorySelectionBar() {
+      const bar = document.getElementById('categorySelectionBar');
+      if (!bar) return;
+
+      const categories = [
+        { id: 'repair_analyse', name: 'Repair and Analyse', icon: 'cpu' },
+        { id: 'build', name: 'Build', icon: 'hammer' },
+        { id: 'renovation', name: 'Renovation', icon: 'home' }
+      ];
+
+      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
+
+      bar.innerHTML = categories.map(cat => {
+        const isActive = cat.name === activeCat;
+        return `
+          <div class="category-item ${isActive ? 'active' : ''}" onclick="window.BotNBoltApp.selectCategory('${cat.name}')">
+            <div class="category-icon-wrapper">
+              <i data-lucide="${cat.icon}" style="width: 20px; height: 20px;"></i>
+            </div>
+            <span class="category-label">${cat.name}</span>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    selectCategory(categoryName) {
+      this.state.selectedCategory = categoryName;
+      this.renderCategorySelectionBar();
+      
+      // If we are in Dealer Portal or Company Admin role, switch the active context to match the selected category
+      if (this.state.activeRole === 'companyAdmin') {
+        const companies = this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === categoryName);
+        if (companies.length > 0) {
+          this.state.db.companyAdmin.companyName = companies[0].name;
+          this.saveState();
+        }
+      } else if (this.state.activeRole === 'dealer') {
+        const companies = this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === categoryName);
+        if (companies.length > 0) {
+          const dealers = this.state.db.superAdmin.dealers.filter(d => d.company === companies[0].name);
+          if (dealers.length > 0) {
+            this.state.db.dealer.storeName = dealers[0].name;
+            this.state.db.dealer.city = dealers[0].city;
+            this.saveState();
+          }
+        }
+      }
+      
+      this.renderCurrentView();
+    }
+
+    getSuperAdminKpis() {
+      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
+      const companies = this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      const dealers = this.state.db.superAdmin.dealers.filter(d => this.getCompanyCategory(d.company) === activeCat);
+      
+      const totalCompanies = companies.length;
+      const totalDealers = dealers.length;
+      const activeDealersCount = dealers.filter(d => d.status === 'Active').length;
+      const totalRepairScans = dealers.reduce((sum, d) => sum + (d.monthlyRequests || 0), 0) * 12;
+      const totalEndUsers = dealers.reduce((sum, d) => sum + Math.round((d.monthlyRequests || 0) * 8.5), 0);
+      const rawRevenue = dealers.reduce((sum, d) => sum + (d.materialSales || 0), 0);
+      const monthlyRevenue = "$" + rawRevenue.toLocaleString();
+      
+      return {
+        totalCompanies: { value: totalCompanies, change: "+0 this month", trend: "neutral" },
+        totalDealers: { value: totalDealers, change: `+${Math.max(1, Math.round(totalDealers * 0.1))} this month`, trend: "up" },
+        totalEndUsers: { value: totalEndUsers, change: "+15% YoY", trend: "up" },
+        totalRepairScans: { value: totalRepairScans, change: `+${Math.round(totalRepairScans / 50)} this week`, trend: "up" },
+        activeUsersToday: { value: Math.round(totalDealers * 3.5), change: "12% higher than average", trend: "up" },
+        monthlyRevenue: { value: monthlyRevenue, change: "+8.4%", trend: "up" },
+        aiRequestsUsed: { value: Math.round(totalRepairScans * 1.5), change: `Limit: ${totalCompanies * 4000}`, trend: "neutral" },
+        totalTicketsOpen: { value: this.state.db.supportAdmin.tickets.filter(t => this.getCompanyCategory(t.company) === activeCat && t.status === 'Open').length, change: "2 urgent", trend: "down" },
+        subscriptionExpiryAlerts: { value: 1, change: "Within 30 days", trend: "warning" },
+        avgRepairAccuracy: { value: "94.2%", change: "+0.8% accuracy", trend: "up" },
+        awsCost: { value: "$" + Math.round(rawRevenue * 0.04).toLocaleString(), change: "+4.2%", trend: "up" },
+        aiCost: { value: "$" + Math.round(rawRevenue * 0.06).toLocaleString(), change: "+1.8%", trend: "up" },
+        investment: { value: "$" + Math.round(rawRevenue * 0.25).toLocaleString() },
+        netProfit: { value: "$" + Math.round(rawRevenue * 0.73).toLocaleString(), change: "73.7% Margin", trend: "up" },
+        todayErrors: { value: Math.round(totalDealers * 0.4).toString(), change: "-12% drop", trend: "down" },
+        avgResponseTime: { value: "124 ms", change: "99.9% Uptime", trend: "success" }
+      };
+    }
+
+    getFilteredSuperAdmin() {
+      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
+      const rawDb = this.state.db.superAdmin;
+      
+      const companies = rawDb.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      const dealers = rawDb.dealers.filter(d => this.getCompanyCategory(d.company) === activeCat);
+      
+      const logs = rawDb.logs.filter(l => {
+        const relatedCompany = companies.some(c => l.user.includes(c.name) || l.action.includes(c.name));
+        const relatedDealer = dealers.some(d => l.action.includes(d.name) || l.user.includes(d.name));
+        return relatedCompany || relatedDealer || l.user === 'System Scheduler' || l.user === 'System Monitor' || l.user === 'Nihit Sharma';
+      });
+
+      const charts = { ...rawDb.charts };
+      const systemErrors = (rawDb.systemErrors || []).filter(e => {
+        return dealers.some(d => e.dealer === d.name) || companies.some(c => e.company === c.name) || e.reportedBy === 'System API Gate';
+      });
+
+      const kpis = this.getSuperAdminKpis();
+
+      return {
+        ...rawDb,
+        companies,
+        dealers,
+        logs,
+        charts,
+        systemErrors,
+        kpis
+      };
+    }
+
+    getFilteredCompanyAdmin() {
+      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
+      const companies = this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      
+      let activeCompany = companies[0] ? companies[0].name : 'Home hardware';
+      if (this.state.db.companyAdmin && companies.some(c => c.name === this.state.db.companyAdmin.companyName)) {
+        activeCompany = this.state.db.companyAdmin.companyName;
+      }
+      
+      const dealers = this.state.db.superAdmin.dealers.filter(d => d.company === activeCompany);
+      const activeDealersCount = dealers.filter(d => d.status === 'Active').length;
+      const totalScans = dealers.reduce((s, d) => s + (d.monthlyRequests || 0), 0);
+      const rawRevenue = dealers.reduce((s, d) => s + (d.materialSales || 0), 0);
+      
+      return {
+        companyName: activeCompany,
+        dealers: dealers,
+        kpis: {
+          totalDealers: { value: dealers.length, change: "+0 this month", trend: "neutral" },
+          totalRepairRequests: { value: totalScans, change: "+12% growth", trend: "up" },
+          activeDealers: { value: activeDealersCount, change: "+1 new location", trend: "up" },
+          ordersGenerated: { value: Math.round(dealers.length * 28), change: "62% conversion", trend: "up" },
+          revenueGenerated: { value: "$" + rawRevenue.toLocaleString(), change: "+8.4%", trend: "up" },
+          customerSatisfaction: { value: "4.6 / 5.0", change: "+0.2 rating", trend: "up" }
+        },
+        supportTickets: this.state.db.supportAdmin.tickets.filter(t => t.company === activeCompany),
+        materials: [
+          { name: "FlexResin Epoxy (Industrial)", sku: "FR-EPOXY-400ML", inventory: "In Stock", suggestions: 412, dealersAvailable: 12, conversionRate: 74.2 },
+          { name: "ClearSpray Acrylic (High Gloss)", sku: "CS-GLOSS-500ML", inventory: "Low Stock", suggestions: 320, dealersAvailable: 9, conversionRate: 68.5 },
+          { name: "ABS Melt Filler Rods", sku: "ABS-MELT-10PK", inventory: "In Stock", suggestions: 180, dealersAvailable: 11, conversionRate: 59.8 },
+          { name: "High-Build Primer Spray", sku: "HB-PRIMER-GREY", inventory: "Out of Stock", suggestions: 92, dealersAvailable: 4, conversionRate: 48.1 }
+        ],
+        profile: {
+          storeName: activeCompany,
+          address: "100 Corporate Parkway, Suite 500",
+          hours: "Mon-Fri: 08:00 AM - 06:00 PM"
+        }
+      };
+    }
+
+    getFilteredDealer() {
+      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
+      const companies = this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      const activeCompany = companies[0] ? companies[0].name : 'Home hardware';
+      
+      const dealers = this.state.db.superAdmin.dealers.filter(d => d.company === activeCompany);
+      let activeDealer = dealers[0] ? dealers[0].name : 'Home hardware 01';
+      let activeCity = dealers[0] ? dealers[0].city : 'Toronto';
+      
+      if (this.state.db.dealer && dealers.some(d => d.name === this.state.db.dealer.storeName)) {
+        activeDealer = this.state.db.dealer.storeName;
+        activeCity = this.state.db.dealer.city;
+      }
+      
+      const matchedDealerData = this.state.db.superAdmin.dealers.find(d => d.name === activeDealer) || {};
+      const numRequests = matchedDealerData.monthlyRequests || 142;
+      
+      return {
+        storeName: activeDealer,
+        city: activeCity,
+        kpis: {
+          totalRepairRequests: { value: numRequests, change: "+18 this week", trend: "up" },
+          todayCustomers: { value: Math.round(numRequests / 15), change: "3 scans pending analysis", trend: "neutral" },
+          materialsSuggested: { value: Math.round(numRequests * 2.2), change: "Avg 2.2 items/request", trend: "neutral" },
+          ordersGenerated: { value: Math.round(numRequests * 0.62), change: "62% completion rate", trend: "up" },
+          revenueEstimate: { value: "$" + (matchedDealerData.materialSales || 24500).toLocaleString(), change: "Avg $172 per repair", trend: "up" },
+          mostCommonRepairs: { value: "Panel Scratch / Dent", change: "78% of local cases", trend: "neutral" }
+        },
+        repairRequests: this.state.db.dealer.repairRequests.map((req, index) => {
+          return {
+            ...req,
+            raisedBy: activeDealer
+          };
+        }),
+        materialRecommendations: this.state.db.dealer.materialRecommendations || [],
+        materials: this.state.db.dealer.materials || [],
+        leads: this.state.db.dealer.leads || [],
+        profile: {
+          storeName: activeDealer,
+          address: (matchedDealerData.location || "1050 Danforth Ave") + ", " + activeCity + ", " + (matchedDealerData.province || "Ontario"),
+          hours: "Mon-Sat: 08:00 AM - 08:00 PM"
+        }
+      };
+    }
+
+    getFilteredSupportAdmin() {
+      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
+      const rawDb = this.state.db.supportAdmin;
+      const superDb = this.state.db.superAdmin;
+      
+      const companies = superDb.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      const dealers = superDb.dealers.filter(d => this.getCompanyCategory(d.company) === activeCat);
+      
+      const tickets = rawDb.tickets.filter(t => this.getCompanyCategory(t.company) === activeCat);
+      const companySupportOverview = rawDb.companySupportOverview.filter(c => this.getCompanyCategory(c.companyName) === activeCat);
+      const aiErrorReports = rawDb.aiErrorReports.filter(e => this.getCompanyCategory(e.reportedBy) === activeCat || dealers.some(d => d.name === e.reportedBy));
+      const dealerSupport = rawDb.dealerSupport.filter(d => this.getCompanyCategory(d.dealerName) === activeCat || dealers.some(dl => dl.name === d.dealerName));
+      
+      return {
+        ...rawDb,
+        tickets,
+        companySupportOverview,
+        aiErrorReports,
+        dealerSupport
+      };
     }
 
     saveState() {
@@ -247,6 +486,9 @@
     renderCurrentView() {
       // Clean up previous charts
       this.destroyCharts();
+
+      // Render global category selector
+      this.renderCategorySelectionBar();
 
       const canvas = document.getElementById('contentCanvas');
       const role = this.state.activeRole;
@@ -540,7 +782,7 @@
     // SUPER ADMIN VIEWS
     // ----------------------------------------------------
     renderSuperAdminView(canvas, menu) {
-      const db = this.state.db.superAdmin;
+      const db = this.getFilteredSuperAdmin();
 
       if (menu === 'overview') {
         canvas.innerHTML = `
@@ -2911,7 +3153,7 @@
     // COMPANY ADMIN VIEWS
     // ----------------------------------------------------
     renderCompanyAdminView(canvas, menu) {
-      const db = this.state.db.companyAdmin;
+      const db = this.getFilteredCompanyAdmin();
 
       if (menu === 'overview') {
         const activeDealers = db.dealers.filter(d => d.status === 'Active').length;
@@ -4073,7 +4315,7 @@
     // DEALER VIEWS
     // ----------------------------------------------------
     renderDealerView(canvas, menu) {
-      const db = this.state.db.dealer;
+      const db = this.getFilteredDealer();
       if (!db.profile) {
         db.profile = JSON.parse(JSON.stringify((window.BotNBoltMockData && window.BotNBoltMockData.dealer && window.BotNBoltMockData.dealer.profile) || {}));
         this.saveState();
@@ -5361,7 +5603,7 @@
         this.state.db.supportAdmin = JSON.parse(JSON.stringify(window.BotNBoltMockData.supportAdmin || {}));
         this.saveState();
       }
-      const db = this.state.db.supportAdmin;
+      const db = this.getFilteredSupportAdmin();
       if (!db.tickets) {
         db.tickets = JSON.parse(JSON.stringify((window.BotNBoltMockData && window.BotNBoltMockData.supportAdmin && window.BotNBoltMockData.supportAdmin.tickets) || []));
         this.saveState();
