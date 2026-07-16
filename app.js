@@ -25,7 +25,9 @@
     model_performance: 'shield-check',
     company_detail: 'building-2',
     dealer_detail: 'store',
-    ticket_detail: 'ticket'
+    ticket_detail: 'ticket',
+    users: 'user',
+    settings: 'settings'
   };
 
   // Nav labels
@@ -52,7 +54,9 @@
     model_performance: 'Model Performance',
     company_detail: 'Company Detail',
     dealer_detail: 'Dealer Detail',
-    ticket_detail: 'Ticket Details'
+    ticket_detail: 'Ticket Details',
+    users: 'Users & Requests',
+    settings: 'AI Config & Billing'
   };
 
   // Profiles mapping by role
@@ -115,6 +119,79 @@
       } else {
         this.state.db = JSON.parse(JSON.stringify(window.BotNBoltMockData));
       }
+
+      // Self-healing database initialization for new tables
+      if (!this.state.db.users) {
+        this.state.db.users = [
+          { id: "CUST-001", name: "David Beckham", email: "david.beck@gmail.com", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 15:30", requestsCount: 24 },
+          { id: "CUST-002", name: "Emma Watson", email: "emma@yahoo.com", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 17:10", requestsCount: 18 },
+          { id: "CUST-003", name: "James Bond", email: "007@mi6.gov.uk", role: "Customer", company: "My Depot", status: "Active", lastActive: "2026-07-15 12:45", requestsCount: 32 },
+          { id: "CUST-004", name: "Bruce Wayne", email: "bruce@waynecorp.com", role: "Customer", company: "Rona", status: "Active", lastActive: "2026-07-15 16:15", requestsCount: 45 },
+          { id: "CUST-005", name: "Clark Kent", email: "clark@dailyplanet.com", role: "Customer", company: "BMR Group", status: "Active", lastActive: "2026-07-15 11:00", requestsCount: 9 },
+          { id: "CUST-006", name: "Diana Prince", email: "diana@themiscira.org", role: "Customer", company: "Tottens", status: "Active", lastActive: "2026-07-14 09:30", requestsCount: 14 },
+          { id: "CUST-007", name: "Peter Parker", email: "peter.p@dailybugle.com", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 14:20", requestsCount: 28 },
+          { id: "CUST-008", name: "Tony Stark", email: "tony@starkindustries.com", role: "Customer", company: "My Depot", status: "Active", lastActive: "2026-07-15 10:10", requestsCount: 64 },
+          { id: "CUST-009", name: "Steve Rogers", email: "cap@avengers.org", role: "Customer", company: "Rona", status: "Active", lastActive: "2026-07-15 17:05", requestsCount: 12 },
+          { id: "CUST-010", name: "Natasha Romanoff", email: "nat@shield.gov", role: "Customer", company: "BMR Group", status: "Active", lastActive: "2026-07-15 16:40", requestsCount: 19 },
+          { id: "CUST-011", name: "Bruce Banner", email: "hulk@starklabs.com", role: "Customer", company: "Tottens", status: "Active", lastActive: "2026-07-15 15:55", requestsCount: 37 },
+          { id: "CUST-012", name: "Thor Odinson", email: "thor@asgard.gov", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 14:15", requestsCount: 5 },
+          { id: "CUST-013", name: "Barry Allen", email: "barry.a@ccpd.gov", role: "Customer", company: "My Depot", status: "Active", lastActive: "2026-07-15 11:30", requestsCount: 22 },
+          { id: "CUST-014", name: "Hal Jordan", email: "greenlantern@ferriaerospace.com", role: "Customer", company: "Rona", status: "Active", lastActive: "2026-07-15 16:50", requestsCount: 15 },
+          { id: "CUST-015", name: "Arthur Curry", email: "aquaman@atlantis.org", role: "Customer", company: "Tottens", status: "Active", lastActive: "2026-07-15 17:02", requestsCount: 3 }
+        ];
+      }
+
+      if (!this.state.db.userRequests) {
+        this.state.db.userRequests = [
+          { id: "REQ-2001", customerId: "CUST-001", customerName: "David Beckham", customerEmail: "david.beck@gmail.com", company: "Home hardware", dealer: "Home hardware Toronto 01", type: "AI Diagnosis Scan", payload: "Scanned cracked oak dining table surface", aiResponse: "FlexResin Wood Filler + Walnut Stain matched", duration: 240, timestamp: "2026-07-15 15:30", status: "Success" },
+          { id: "REQ-2002", customerId: "CUST-002", customerName: "Emma Watson", customerEmail: "emma@yahoo.com", company: "Home hardware", dealer: "Home hardware Toronto 02", type: "AI Product Match", payload: "Waterproofing sealant for concrete planter", aiResponse: "Aquashield Premium Epoxy matched", duration: 185, timestamp: "2026-07-15 17:10", status: "Success" },
+          { id: "REQ-2003", customerId: "CUST-003", customerName: "James Bond", customerEmail: "007@mi6.gov.uk", company: "My Depot", dealer: "My Depot Montreal 01", type: "AI Material Estimate", payload: "Estimate tiles for 12x15 kitchen backsplash", aiResponse: "Requires 180 sq ft Subway Tile + 2 bags Mapei Grout", duration: 310, timestamp: "2026-07-15 12:45", status: "Success" },
+          { id: "REQ-2004", customerId: "CUST-004", customerName: "Bruce Wayne", customerEmail: "bruce@waynecorp.com", company: "Rona", dealer: "Rona Boucherville 01", type: "AI Diagnosis Scan", payload: "Scanned cracked brick foundation wall", aiResponse: "Structural Epoxy Injection Kit SKU-9482 recommended", duration: 420, timestamp: "2026-07-15 16:15", status: "Success" },
+          { id: "REQ-2005", customerId: "CUST-005", customerName: "Clark Kent", customerEmail: "clark@dailyplanet.com", company: "BMR Group", dealer: "BMR Group Montreal 02", type: "AI Product Match", payload: "Dry outdoor rust-resistant metal spray paint", aiResponse: "RustOleum Stops Rust Gloss Black SKU-2847", duration: 120, timestamp: "2026-07-15 11:00", status: "Success" },
+          { id: "REQ-2006", customerId: "CUST-006", customerName: "Diana Prince", customerEmail: "diana@themiscira.org", company: "Tottens", dealer: "Tottens Winnipeg 01", type: "AI Material Estimate", payload: "Calculate wall plaster for 8x20 room drywall finish", aiResponse: "Requires 3 sheets Gyprock Drywall + 1 bucket Joint Compound", duration: 295, timestamp: "2026-07-14 09:30", status: "Success" },
+          { id: "REQ-2007", customerId: "CUST-007", customerName: "Peter Parker", customerEmail: "peter.p@dailybugle.com", company: "Home hardware", dealer: "Home hardware Toronto 01", type: "AI Diagnosis Scan", payload: "Scanned loose vinyl siding seam", aiResponse: "Siding Lock Tool + Vinyl Siding Nails SKU-8321 matched", duration: 190, timestamp: "2026-07-15 14:20", status: "Success" },
+          { id: "REQ-2008", customerId: "CUST-008", customerName: "Tony Stark", customerEmail: "tony@starkindustries.com", company: "My Depot", dealer: "My Depot Montreal 01", type: "AI Product Match", payload: "Query: high heat resistant copper solder alloy", aiResponse: "Harris Stay-Silv 15% Silver Solder SKU-3948", duration: 95, timestamp: "2026-07-15 10:10", status: "Success" },
+          { id: "REQ-2009", customerId: "CUST-009", customerName: "Steve Rogers", customerEmail: "cap@avengers.org", company: "Rona", dealer: "Rona Boucherville 01", type: "AI Diagnosis Scan", payload: "Scanned cracked wooden shield varnish", aiResponse: "Premium Spar Urethane Satin Finish matched", duration: 380, timestamp: "2026-07-15 17:05", status: "Success" },
+          { id: "REQ-2010", customerId: "CUST-010", customerName: "Natasha Romanoff", customerEmail: "nat@shield.gov", company: "BMR Group", dealer: "BMR Group Montreal 02", type: "AI Support Ticket", payload: "Inquiry: Can I return unused paint cans after 30 days?", aiResponse: "Auto-answered: Return policy allows 90 days on unopened cans", duration: 140, timestamp: "2026-07-15 16:40", status: "Success" },
+          { id: "REQ-2011", customerId: "CUST-011", customerName: "Bruce Banner", customerEmail: "hulk@starklabs.com", company: "Tottens", dealer: "Tottens Winnipeg 01", type: "AI Diagnosis Scan", payload: "Scanned shattered concrete driveway slab", aiResponse: "Quikrete High-Strength Concrete Mix matched", duration: 460, timestamp: "2026-07-15 15:55", status: "Success" },
+          { id: "REQ-2012", customerId: "CUST-012", customerName: "Thor Odinson", customerEmail: "thor@asgard.gov", company: "Home hardware", dealer: "Home hardware Toronto 02", type: "AI Product Match", payload: "Query: heavy duty hammer handle replacement wood", aiResponse: "Genuine Hickory Replacement Handle SKU-5092", duration: 115, timestamp: "2026-07-15 14:15", status: "Success" },
+          { id: "REQ-2013", customerId: "CUST-013", customerName: "Barry Allen", customerEmail: "barry.a@ccpd.gov", company: "My Depot", dealer: "My Depot Montreal 01", type: "AI Material Estimate", payload: "Estimate self-leveling underlayment for 500 sq ft floor", aiResponse: "Requires 14 bags Level-Quick Self-Leveling compound", duration: 330, timestamp: "2026-07-15 11:30", status: "Success" },
+          { id: "REQ-2014", customerId: "CUST-014", customerName: "Hal Jordan", customerEmail: "greenlantern@ferriaerospace.com", company: "Rona", dealer: "Rona Boucherville 01", type: "AI Diagnosis Scan", payload: "Scanned scratched aircraft fiberglass panel", aiResponse: "Bondo Glass Reinforced Filler SKU-7301 matched", duration: 280, timestamp: "2026-07-15 16:50", status: "Success" },
+          { id: "REQ-2015", customerId: "CUST-015", customerName: "Arthur Curry", customerEmail: "aquaman@atlantis.org", company: "Tottens", dealer: "Tottens Winnipeg 01", type: "AI Support Ticket", payload: "Inquiry: Do you stock marine grade stainless steel bolts?", aiResponse: "Auto-answered: Yes, A4 Marine Grade bolts are in aisle 7", duration: 155, timestamp: "2026-07-15 17:02", status: "Success" }
+        ];
+      }
+
+      if (!this.state.db.aiConfig) {
+        this.state.db.aiConfig = {
+          model: "BotNBolt-Pro-v3.0",
+          temperature: 0.7,
+          maxTokens: 2048,
+          systemPrompt: "You are the BotNBolt Diagnostic AI Assistant. Analyze uploaded terminal scans and recommend precise restoration materials and standard retail SKUs available at the store location.",
+          companyToggles: {
+            "Home hardware": { autoDiagnosis: true, estimator: true, autoReply: false, prompt: "" },
+            "My Depot": { autoDiagnosis: true, estimator: false, autoReply: true, prompt: "" },
+            "Rona": { autoDiagnosis: true, estimator: true, autoReply: true, prompt: "" },
+            "BMR Group": { autoDiagnosis: false, estimator: true, autoReply: false, prompt: "" },
+            "Tottens": { autoDiagnosis: true, estimator: true, autoReply: false, prompt: "" }
+          },
+          dealerToggles: {
+            "Home hardware 01": { staffAssistant: true, autofillMaterials: true, alerts: true },
+            "Home hardware 02": { staffAssistant: true, autofillMaterials: false, alerts: true },
+            "My Depot 01": { staffAssistant: false, autofillMaterials: true, alerts: true },
+            "Rona 01": { staffAssistant: true, autofillMaterials: true, alerts: false }
+          }
+        };
+      }
+
+      if (!this.state.db.aiBilling) {
+        this.state.db.aiBilling = [
+          { tool: "AI Diagnosis Scan", requests: 4820, tokensInput: 9640000, tokensOutput: 4820000, cost: 169.20, status: "Paid" },
+          { tool: "AI Material Estimator", requests: 3120, tokensInput: 6240000, tokensOutput: 9360000, cost: 218.40, status: "Paid" },
+          { tool: "AI Ticket Auto-Reply", requests: 480, tokensInput: 960000, tokensOutput: 1440000, cost: 33.60, status: "Paid" },
+          { tool: "AI Search Catalog", requests: 1240, tokensInput: 1240000, tokensOutput: 620000, cost: 24.80, status: "Paid" }
+        ];
+      }
+      this.saveState();
 
       // Check saved theme
       const savedTheme = localStorage.getItem('botnbolt_theme') || 'light';
@@ -192,6 +269,576 @@
       }
       
       this.renderCurrentView();
+    }
+
+    renderUsersView(canvas) {
+      const role = this.state.activeRole;
+      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
+      
+      let titleScope = "";
+      let requests = this.state.db.userRequests || [];
+      
+      // Filter requests by role scope and category
+      if (role === 'superAdmin') {
+        titleScope = "System-Wide Customer AI Inquiries";
+        requests = requests.filter(r => this.getCompanyCategory(r.company) === activeCat);
+      } else if (role === 'companyAdmin') {
+        const companyName = this.getFilteredCompanyAdmin().companyName;
+        titleScope = `${companyName} Brand Customer Activity`;
+        requests = requests.filter(r => r.company === companyName);
+      } else if (role === 'dealer') {
+        const dealerName = this.getFilteredDealer().storeName;
+        const companyName = this.getFilteredCompanyAdmin().companyName;
+        titleScope = `${dealerName} Store Customer Activity`;
+        requests = requests.filter(r => r.company === companyName && r.dealer.includes(dealerName));
+      } else if (role === 'supportAdmin') {
+        titleScope = "System Support Agent View";
+        requests = requests.filter(r => r.type === 'AI Support Ticket');
+      }
+
+      // Filter table by search query
+      const searchKey = 'users_list';
+      const query = (this.state.searchQueries[searchKey] || '').toLowerCase();
+      const filtered = requests.filter(r => {
+        return r.customerName.toLowerCase().includes(query) ||
+               r.customerEmail.toLowerCase().includes(query) ||
+               r.type.toLowerCase().includes(query) ||
+               r.payload.toLowerCase().includes(query) ||
+               r.aiResponse.toLowerCase().includes(query) ||
+               r.id.toLowerCase().includes(query);
+      });
+
+      // Calculate KPI metrics
+      const totalRequests = requests.length;
+      const distinctCustomers = [...new Set(requests.map(r => r.customerId))].length;
+      const avgDuration = totalRequests > 0 ? Math.round(requests.reduce((sum, r) => sum + r.duration, 0) / totalRequests) : 0;
+      const autoResolveRate = 86.4;
+
+      canvas.innerHTML = `
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">
+
+          <div class="card" style="padding: 16px; border-left: 4px solid var(--success); display:flex; justify-content:space-between; align-items:center; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(16, 185, 129, 0.05) 100%);">
+            <div>
+              <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Customer Requests</div>
+              <strong style="font-size:1.4rem; color:var(--success); font-family:var(--font-family);">${totalRequests}</strong>
+            </div>
+            <i data-lucide="activity" style="color: var(--success); width: 24px; height: 24px;"></i>
+          </div>
+
+          <div class="card" style="padding: 16px; border-left: 4px solid var(--warning); display:flex; justify-content:space-between; align-items:center; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(245, 158, 11, 0.05) 100%);">
+            <div>
+              <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Avg Response Latency</div>
+              <strong style="font-size:1.4rem; color:var(--text-primary); font-family:var(--font-family);">${avgDuration} ms</strong>
+            </div>
+            <i data-lucide="zap" style="color: var(--warning); width: 24px; height: 24px;"></i>
+          </div>
+
+          <div class="card" style="padding: 16px; border-left: 4px solid var(--danger); display:flex; justify-content:space-between; align-items:center; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(239, 68, 68, 0.05) 100%);">
+            <div>
+              <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Auto-Resolve Accuracy</div>
+              <strong style="font-size:1.4rem; color:var(--text-primary); font-family:var(--font-family);">${autoResolveRate}%</strong>
+            </div>
+            <i data-lucide="check-circle" style="color: var(--danger); width: 24px; height: 24px;"></i>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
+          <div class="card" style="padding:20px; height: 320px;">
+            <div class="card-header" style="padding:0 0 16px 0; border-bottom:1px solid var(--border-color); margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+              <span class="card-title">Customer Query Trends</span>
+              <span style="font-size:0.72rem; background:rgba(37,99,235,0.1); color:var(--primary); padding:2px 8px; border-radius:4px; font-weight:600;">Last 7 Days</span>
+            </div>
+            <div style="position:relative; height: calc(100% - 60px); width:100%;">
+              <canvas id="userRequestsChart"></canvas>
+            </div>
+          </div>
+
+          <div class="card" style="padding:20px; height: 320px;">
+            <div class="card-header" style="padding:0 0 16px 0; border-bottom:1px solid var(--border-color); margin-bottom:16px;">
+              <span class="card-title">Request Types Distribution</span>
+            </div>
+            <div style="position:relative; height: calc(100% - 60px); width:100%; display:flex; justify-content:center; align-items:center;">
+              <canvas id="userRolesChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap: wrap; gap:16px;">
+            <div>
+              <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0;">Customer Requests Logs (${titleScope})</h3>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin: 4px 0 0 0;">Review raw AI matching queries, materials suggested, and terminal metadata</p>
+            </div>
+            
+            <div style="display:flex; gap:12px; align-items:center;">
+              <div class="search-wrapper" style="position: relative; width: 300px;">
+                <i data-lucide="search" style="width: 14px; height: 14px; top: 50%; transform: translateY(-50%); position: absolute; left: 12px; color: var(--text-secondary); pointer-events: none;"></i>
+                <input type="text" placeholder="Search by customer, scan input, match..." class="form-control" style="padding-left: 36px; border-radius: 6px; font-size: 0.8rem; height: 36px;" value="${query}" oninput="window.BotNBoltApp.handleUserSearch('${searchKey}', this.value)">
+              </div>
+              <button class="btn btn-secondary btn-sm flex-center" onclick="alert('Exporting customer request analytics logs as CSV...')">
+                <i data-lucide="download" style="width:14px; height:14px; margin-right:4px;"></i> Export CSV
+              </button>
+              <button class="btn btn-primary btn-sm flex-center" onclick="window.BotNBoltApp.simulateCustomerRequest()">
+                <i data-lucide="plus-circle" style="width:14px; height:14px; margin-right:4px;"></i> Simulate Scan
+              </button>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table class="table" style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); text-align: left; font-size:0.8rem; text-transform:uppercase; color:var(--text-secondary);">
+                  <th style="padding:12px 16px;">Request ID</th>
+                  <th style="padding:12px 16px;">Customer Details</th>
+                  <th style="padding:12px 16px;">Store / Outlet</th>
+                  <th style="padding:12px 16px;">Request Type</th>
+                  <th style="padding:12px 16px; width: 22%;">Scan / Query Input</th>
+                  <th style="padding:12px 16px; width: 22%;">AI Response Match</th>
+                  <th style="padding:12px 16px;">Latency & Time</th>
+                  <th style="padding:12px 16px; text-align:right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filtered.length === 0 ? `
+                  <tr>
+                    <td colspan="8" style="text-align:center; padding:32px; color:var(--text-secondary);">No matching customer requests found.</td>
+                  </tr>
+                ` : filtered.map(r => {
+                  return `
+                    <tr style="border-bottom: 1px solid var(--border-color); font-size:0.85rem; color:var(--text-primary);">
+                      <td style="padding:14px 16px; font-family:monospace; font-weight:600; color:var(--text-secondary);">${r.id}</td>
+                      <td style="padding:14px 16px;">
+                        <div style="font-weight:600;">${r.customerName}</div>
+                        <div style="font-size:0.72rem; color:var(--text-secondary);">${r.customerEmail}</div>
+                      </td>
+                      <td style="padding:14px 16px; font-weight:500;">
+                        <span style="font-size:0.8rem;">${r.dealer}</span>
+                      </td>
+                      <td style="padding:14px 16px;">
+                        <span class="badge" style="background:rgba(37,99,235,0.08); color:var(--primary); font-weight:600; padding:2px 8px; border-radius:4px; font-size:0.72rem;">${r.type}</span>
+                      </td>
+                      <td style="padding:14px 16px; font-style:italic; font-size:0.8rem; color:var(--text-primary); line-height:1.4;">"${r.payload}"</td>
+                      <td style="padding:14px 16px; font-weight:600; color:var(--success); font-size:0.8rem; line-height:1.4;">${r.aiResponse}</td>
+                      <td style="padding:14px 16px; font-size:0.78rem;">
+                        <div style="font-weight:700; color:var(--text-primary);">${r.duration} ms</div>
+                        <div style="font-size:0.68rem; color:var(--text-secondary);">${r.timestamp}</div>
+                      </td>
+                      <td style="padding:14px 16px; text-align:right;">
+                        <button class="btn btn-secondary btn-sm" onclick="alert('Raw API Payload Prompt:\\n\\n{\\n  \\&quot;user_input\\&quot;: \\&quot;${r.payload}\\&quot;,\\n  \\&quot;model\\&quot;: \\&quot;GPT-4o\\&quot;,\\n  \\&quot;history_turns\\&quot;: 3,\\n  \\&quot;latency_ms\\&quot;: ${r.duration}\\n}\\n\\nAI JSON Response Match:\\n\\n{\\n  \\&quot;match\\&quot;: \\&quot;${r.aiResponse}\\&quot;,\\n  \\&quot;confidence\\&quot;: 0.96,\\n  \\&quot;status\\&quot;: \\&quot;Success\\&quot;\\n}')" style="padding:6px 10px; font-size:0.72rem;">Inspect</button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      this.renderUsersCharts(requests);
+    }
+
+    handleUserSearch(key, val) {
+      this.state.searchQueries[key] = val;
+      this.renderUsersView(document.getElementById('contentCanvas'));
+    }
+
+    simulateCustomerRequest() {
+      const customers = [
+        { id: "CUST-020", name: "Luke Skywalker", email: "luke@tatooine.com" },
+        { id: "CUST-021", name: "Princess Leia", email: "leia@alderaan.org" },
+        { id: "CUST-022", name: "Han Solo", email: "han@millenniumfalcon.com" },
+        { id: "CUST-023", name: "Darth Vader", email: "vader@deathstar.gov" },
+        { id: "CUST-024", name: "Obi-Wan Kenobi", email: "ben@tatooine.com" }
+      ];
+      
+      const companiesByCat = {
+        'Repair and Analyse': [
+          { company: 'Home hardware', dealer: 'Home hardware Toronto 01' },
+          { company: 'BMR Group', dealer: 'BMR Group Montreal 02' }
+        ],
+        'Build': [
+          { company: 'Tottens', dealer: 'Tottens Winnipeg 01' }
+        ],
+        'Renovation': [
+          { company: 'My Depot', dealer: 'My Depot Montreal 01' },
+          { company: 'Rona', dealer: 'Rona Boucherville 01' }
+        ]
+      };
+
+      const selectedCat = this.state.selectedCategory || 'Repair and Analyse';
+      const companyOptions = companiesByCat[selectedCat];
+      const selectedOption = companyOptions[Math.floor(Math.random() * companyOptions.length)];
+
+      const requestTemplates = [
+        { type: "AI Diagnosis Scan", payload: "Scanned cracked drywall joint near corner", aiResponse: "Sheetrock joint tape + All-purpose compound matched" },
+        { type: "AI Product Match", payload: "Query: weather-proof silicone sealant for exterior window frame", aiResponse: "GE Supreme Silicone Window & Door Caulk matched" },
+        { type: "AI Material Estimate", payload: "Estimate coverage for 15 gallons deck stain", aiResponse: "Covers approximately 3,750 sq ft of decking wood surface" },
+        { type: "AI Diagnosis Scan", payload: "Scanned water damaged baseboard trimming", aiResponse: "Suggest PVC waterproof profile SKU-2847 matched" },
+        { type: "AI Product Match", payload: "Query: low-VOC latex primer for basement masonry", aiResponse: "KILZ 2 All-Purpose Latex Primer matched" }
+      ];
+
+      const template = requestTemplates[Math.floor(Math.random() * requestTemplates.length)];
+      const customer = customers[Math.floor(Math.random() * customers.length)];
+      
+      const newReq = {
+        id: `REQ-${Math.floor(Math.random() * 9000) + 2100}`,
+        customerId: customer.id,
+        customerName: customer.name,
+        customerEmail: customer.email,
+        company: selectedOption.company,
+        dealer: selectedOption.dealer,
+        type: template.type,
+        payload: template.payload,
+        aiResponse: template.aiResponse,
+        duration: Math.floor(Math.random() * 300) + 80,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
+        status: "Success"
+      };
+
+      if (!this.state.db.userRequests) this.state.db.userRequests = [];
+      this.state.db.userRequests.unshift(newReq);
+      this.saveState();
+      
+      this.renderUsersView(document.getElementById('contentCanvas'));
+      lucide.createIcons();
+    }
+
+    toggleUserStatus(userId) {
+      const user = this.state.db.users.find(u => u.id === userId);
+      if (user) {
+        user.status = user.status === 'Active' ? 'Suspended' : 'Active';
+        this.saveState();
+        this.renderUsersView(document.getElementById('contentCanvas'));
+      }
+    }
+
+    renderUsersCharts(requests) {
+      const ctxReq = document.getElementById('userRequestsChart');
+      if (!ctxReq) return;
+
+      const theme = this.state.theme || 'light';
+      const colors = {
+        primary: '#2563eb',
+        success: '#10b981',
+        warning: '#f59e0b',
+        danger: '#ef4444',
+        text: theme === 'dark' ? '#94a3b8' : '#64748b',
+        grid: theme === 'dark' ? 'rgba(148, 163, 184, 0.08)' : 'rgba(100, 116, 139, 0.08)'
+      };
+
+      const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      const dataValues = [142, 189, 165, 210, 245, 112, 98];
+
+      this.state.charts.userRequests = new Chart(ctxReq.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Customer AI Inquiries',
+            data: dataValues,
+            borderColor: colors.primary,
+            backgroundColor: 'rgba(37, 99, 235, 0.05)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { family: 'Inter' } } },
+            y: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { family: 'Inter' } } }
+          }
+        }
+      });
+
+      const ctxRoles = document.getElementById('userRolesChart');
+      if (!ctxRoles) return;
+
+      const typeCounts = {};
+      requests.forEach(r => {
+        typeCounts[r.type] = (typeCounts[r.type] || 0) + 1;
+      });
+
+      this.state.charts.userRoles = new Chart(ctxRoles.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(typeCounts),
+          datasets: [{
+            data: Object.values(typeCounts),
+            backgroundColor: [colors.primary, colors.success, colors.warning, colors.danger]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: colors.text, font: { family: 'Inter', size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    renderSettingsView(canvas) {
+      const role = this.state.activeRole;
+      const defaultPrompt = "You are the BotNBolt Diagnostic AI Assistant. Analyze uploaded terminal scans and recommend precise restoration materials and standard retail SKUs available at the store location.";
+      const config = this.state.db.aiConfig || { model: "BotNBolt-Pro-v3.0", temperature: 0.7, maxTokens: 2048, systemPrompt: defaultPrompt };
+      const billing = this.state.db.aiBilling || [];
+
+      canvas.innerHTML = `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+          
+          <div class="card" style="padding:24px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div class="card-header" style="padding:0 0 16px 0; border-bottom:1px solid var(--border-color); margin-bottom:16px;">
+                <span class="card-title">BotNBolt AI Engine Configuration</span>
+              </div>
+
+              ${(role === 'superAdmin' || role === 'supportAdmin') ? `
+                <div style="margin-bottom:16px; background: rgba(37, 99, 235, 0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(37, 99, 235, 0.15); display: flex; align-items: center; justify-content: space-between;">
+                  <div>
+                    <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:2px;">Active AI Engine</div>
+                    <strong style="font-size:0.9rem; color:var(--text-primary);">BotNBolt AI Core Engine</strong>
+                  </div>
+                  <span style="font-size:0.7rem; background:var(--success); color:#fff; padding:2px 8px; border-radius:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Active & Online</span>
+                </div>
+
+                <div style="margin-bottom:16px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <label class="form-label" style="font-weight:600; font-size:0.8rem; margin:0;">Model Temperature</label>
+                    <span id="tempValue" style="font-size:0.8rem; font-weight:700; color:var(--primary);">${config.temperature}</span>
+                  </div>
+                  <input type="range" class="form-range" id="settingsTemp" min="0" max="1" step="0.1" value="${config.temperature}" style="width:100%;" oninput="document.getElementById('tempValue').innerText = this.value; window.BotNBoltApp.updateAiParam('temperature', parseFloat(this.value))">
+                  <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:var(--text-secondary); margin-top:2px;">
+                    <span>Deterministic (0.0)</span>
+                    <span>Creative (1.0)</span>
+                  </div>
+                </div>
+
+                <div style="margin-bottom:16px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <label class="form-label" style="font-weight:600; font-size:0.8rem; margin:0;">Max Output Tokens</label>
+                    <span id="tokensValue" style="font-size:0.8rem; font-weight:700; color:var(--primary);">${config.maxTokens}</span>
+                  </div>
+                  <input type="range" class="form-range" id="settingsTokens" min="256" max="4096" step="256" value="${config.maxTokens}" style="width:100%;" oninput="document.getElementById('tokensValue').innerText = this.value; window.BotNBoltApp.updateAiParam('maxTokens', parseInt(this.value))">
+                </div>
+
+                <div style="margin-bottom:16px;">
+                  <label class="form-label" style="font-weight:600; font-size:0.8rem; margin-bottom:6px; display:block;">Global AI System Prompt</label>
+                  <textarea class="form-control" id="settingsPrompt" rows="4" style="font-size:0.8rem; line-height:1.4; resize:none;" oninput="window.BotNBoltApp.updateAiParam('systemPrompt', this.value)">${config.systemPrompt || defaultPrompt}</textarea>
+                </div>
+              ` : ''}
+
+              ${role === 'companyAdmin' ? `
+                <div style="margin-bottom:16px;">
+                  <h4 style="font-size:0.85rem; font-weight:700; margin-bottom:12px;">Active Brand AI Features</h4>
+                  
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border-color);">
+                    <div>
+                      <div style="font-size:0.8rem; font-weight:600;">Enable Automatic AI Diagnosis</div>
+                      <div style="font-size:0.68rem; color:var(--text-secondary);">Analyze scan uploads instantly at dealer terminals</div>
+                    </div>
+                    <input type="checkbox" id="toggleDiag" ${config.companyToggles["Home hardware"].autoDiagnosis ? 'checked' : ''} onchange="window.BotNBoltApp.updateCompanyToggle('autoDiagnosis', this.checked)">
+                  </div>
+
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border-color);">
+                    <div>
+                      <div style="font-size:0.8rem; font-weight:600;">Enable Material Recommendation Estimator</div>
+                      <div style="font-size:0.68rem; color:var(--text-secondary);">Suggest corresponding standard retail SKUs</div>
+                    </div>
+                    <input type="checkbox" id="toggleEstimator" ${config.companyToggles["Home hardware"].estimator ? 'checked' : ''} onchange="window.BotNBoltApp.updateCompanyToggle('estimator', this.checked)">
+                  </div>
+
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0;">
+                    <div>
+                      <div style="font-size:0.8rem; font-weight:600;">Support Ticket AI Auto-Response</div>
+                      <div style="font-size:0.68rem; color:var(--text-secondary);">Automatically reply to low-complexity support issues</div>
+                    </div>
+                    <input type="checkbox" id="toggleReply" ${config.companyToggles["Home hardware"].autoReply ? 'checked' : ''} onchange="window.BotNBoltApp.updateCompanyToggle('autoReply', this.checked)">
+                  </div>
+                </div>
+
+                <div style="margin-bottom:16px;">
+                  <label class="form-label" style="font-weight:600; font-size:0.8rem; margin-bottom:6px; display:block;">Company Custom Instructions</label>
+                  <textarea class="form-control" id="companyPrompt" rows="3" placeholder="Append brand specific guidelines (e.g. prioritize HH house brand resins)..." style="font-size:0.8rem; line-height:1.4; resize:none;" oninput="window.BotNBoltApp.updateCompanyToggle('prompt', this.value)">${config.companyToggles["Home hardware"].prompt || ''}</textarea>
+                </div>
+              ` : ''}
+
+              ${role === 'dealer' ? `
+                <div style="margin-bottom:16px;">
+                  <h4 style="font-size:0.85rem; font-weight:700; margin-bottom:12px;">Store Terminal Operations</h4>
+                  
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border-color);">
+                    <div>
+                      <div style="font-size:0.8rem; font-weight:600;">Staff Diagnostic Assistant</div>
+                      <div style="font-size:0.68rem; color:var(--text-secondary);">Display AI suggestion widget inside cashier screens</div>
+                    </div>
+                    <input type="checkbox" id="toggleStaff" ${config.dealerToggles["Home hardware 01"].staffAssistant ? 'checked' : ''} onchange="window.BotNBoltApp.updateDealerToggle('staffAssistant', this.checked)">
+                  </div>
+
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border-color);">
+                    <div>
+                      <div style="font-size:0.8rem; font-weight:600;">Autofill In-Stock Recommendations</div>
+                      <div style="font-size:0.68rem; color:var(--text-secondary);">Automatically add suggested items to purchase invoice</div>
+                    </div>
+                    <input type="checkbox" id="toggleAutofill" ${config.dealerToggles["Home hardware 01"].autofillMaterials ? 'checked' : ''} onchange="window.BotNBoltApp.updateDealerToggle('autofillMaterials', this.checked)">
+                  </div>
+
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0;">
+                    <div>
+                      <div style="font-size:0.8rem; font-weight:600;">Customer SMS & Email Notifications</div>
+                      <div style="font-size:0.68rem; color:var(--text-secondary);">Send copy of diagnostics and quote summary to customer</div>
+                    </div>
+                    <input type="checkbox" id="toggleAlerts" ${config.dealerToggles["Home hardware 01"].alerts ? 'checked' : ''} onchange="window.BotNBoltApp.updateDealerToggle('alerts', this.checked)">
+                  </div>
+                </div>
+              ` : ''}
+
+            </div>
+            
+            <button class="btn btn-primary" style="width:100%; height:42px; font-weight:600; margin-top:16px;" onclick="alert('Engine configuration parameters saved to secure database!')">
+              <i data-lucide="save" style="width:16px; height:16px; margin-right:6px; display:inline-block; vertical-align:middle;"></i> Save Config Parameters
+            </button>
+          </div>
+
+          <div class="card" style="padding:24px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div class="card-header" style="padding:0 0 16px 0; border-bottom:1px solid var(--border-color); margin-bottom:16px;">
+                <span class="card-title">Token Consumption Trends</span>
+              </div>
+              <div style="position:relative; height:200px; width:100%;">
+                <canvas id="tokenUsageChart"></canvas>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:20px;">
+              <div style="background:var(--bg-body); border:1px solid var(--border-color); padding:12px; border-radius:8px;">
+                <div style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Tokens Processed</div>
+                <strong style="font-size:1.1rem; color:var(--text-primary); font-family:var(--font-family);">18,120,000</strong>
+                <div style="font-size:0.65rem; color:var(--success); margin-top:2px;">+14% from last period</div>
+              </div>
+              <div style="background:var(--bg-body); border:1px solid var(--border-color); padding:12px; border-radius:8px;">
+                <div style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Total AI Bill</div>
+                <strong style="font-size:1.1rem; color:var(--primary); font-family:var(--font-family);">$446.00</strong>
+                <div style="font-size:0.65rem; color:var(--text-secondary); margin-top:2px;">Budget: $2,000 limit</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="card" style="padding:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <div>
+              <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0;">Billing Breakdown per AI Tool</h3>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin:4px 0 0 0;">Costs are computed dynamically based on LLM input/output token weights</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="alert('Generating full billing receipt pdf...')">
+              <i data-lucide="download" style="width:14px; height:14px; margin-right:4px;"></i> Download Receipt
+            </button>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table class="table" style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); text-align: left; font-size:0.8rem; text-transform:uppercase; color:var(--text-secondary);">
+                  <th style="padding:12px 16px;">AI Tool / API Endpoint</th>
+                  <th style="padding:12px 16px;">Total Requests</th>
+                  <th style="padding:12px 16px;">Input Tokens</th>
+                  <th style="padding:12px 16px;">Output Tokens</th>
+                  <th style="padding:12px 16px;">Accumulated Cost</th>
+                  <th style="padding:12px 16px;">Billing Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${billing.map(t => {
+                  return `
+                    <tr style="border-bottom:1px solid var(--border-color); font-size:0.85rem; color:var(--text-primary);">
+                      <td style="padding:14px 16px; font-weight:600;">${t.tool}</td>
+                      <td style="padding:14px 16px; font-weight:500;">${t.requests.toLocaleString()}</td>
+                      <td style="padding:14px 16px; font-family:monospace; color:var(--text-secondary);">${t.tokensInput.toLocaleString()}</td>
+                      <td style="padding:14px 16px; font-family:monospace; color:var(--text-secondary);">${t.tokensOutput.toLocaleString()}</td>
+                      <td style="padding:14px 16px; font-weight:700; color:var(--primary);">$${t.cost.toFixed(2)}</td>
+                      <td style="padding:14px 16px;"><span class="badge badge-success">${t.status}</span></td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      this.renderTokenUsageChart();
+    }
+
+    updateAiParam(param, val) {
+      if (!this.state.db.aiConfig) this.state.db.aiConfig = {};
+      this.state.db.aiConfig[param] = val;
+      this.saveState();
+    }
+
+    updateCompanyToggle(field, checkedVal) {
+      const config = this.state.db.aiConfig;
+      if (!config.companyToggles) config.companyToggles = {};
+      if (!config.companyToggles["Home hardware"]) {
+        config.companyToggles["Home hardware"] = { autoDiagnosis: true, estimator: true, autoReply: false, prompt: "" };
+      }
+      config.companyToggles["Home hardware"][field] = checkedVal;
+      this.saveState();
+    }
+
+    updateDealerToggle(field, checkedVal) {
+      const config = this.state.db.aiConfig;
+      if (!config.dealerToggles) config.dealerToggles = {};
+      if (!config.dealerToggles["Home hardware 01"]) {
+        config.dealerToggles["Home hardware 01"] = { staffAssistant: true, autofillMaterials: true, alerts: true };
+      }
+      config.dealerToggles["Home hardware 01"][field] = checkedVal;
+      this.saveState();
+    }
+
+    renderTokenUsageChart() {
+      const ctx = document.getElementById('tokenUsageChart');
+      if (!ctx) return;
+
+      const theme = this.state.theme || 'light';
+      const colors = {
+        primary: '#2563eb',
+        text: theme === 'dark' ? '#94a3b8' : '#64748b',
+        grid: theme === 'dark' ? 'rgba(148, 163, 184, 0.08)' : 'rgba(100, 116, 139, 0.08)'
+      };
+
+      const labels = ["Jul 9", "Jul 10", "Jul 11", "Jul 12", "Jul 13", "Jul 14", "Jul 15"];
+      const dataValues = [1.2, 1.5, 1.8, 2.4, 2.1, 2.9, 3.2];
+
+      this.state.charts.tokenUsage = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Tokens Processed (Millions)',
+            data: dataValues,
+            backgroundColor: colors.primary,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { family: 'Inter' } } },
+            y: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { family: 'Inter' } } }
+          }
+        }
+      });
     }
 
     getSuperAdminKpis() {
@@ -420,13 +1067,13 @@
 
       let items = [];
       if (this.state.activeRole === 'superAdmin') {
-        items = ['overview', 'companies', 'dealers', 'ai_analytics', 'billing', 'revenue', 'ai_cost', 'model_performance', 'infrastructure', 'system_errors', 'tickets', 'permissions'];
+        items = ['overview', 'companies', 'dealers', 'users', 'settings', 'ai_analytics', 'billing', 'revenue', 'ai_cost', 'model_performance', 'infrastructure', 'system_errors', 'tickets', 'permissions'];
       } else if (this.state.activeRole === 'companyAdmin') {
-        items = ['overview', 'dealers', 'repair_analytics', 'insights', 'materials', 'tickets'];
+        items = ['overview', 'dealers', 'repair_analytics', 'insights', 'materials', 'users', 'settings', 'tickets'];
       } else if (this.state.activeRole === 'dealer') {
-        items = ['overview', 'requests', 'materials', 'leads', 'tickets', 'profile'];
+        items = ['overview', 'requests', 'materials', 'leads', 'users', 'settings', 'tickets', 'profile'];
       } else if (this.state.activeRole === 'supportAdmin') {
-        items = ['overview', 'tickets', 'companies', 'dealers', 'ai_errors', 'monitoring'];
+        items = ['overview', 'tickets', 'companies', 'dealers', 'users', 'settings', 'ai_errors', 'monitoring'];
       }
 
       items.forEach(item => {
@@ -504,6 +1151,22 @@
         document.getElementById('pageTitle').innerText = `Ticket Details (${roleProfiles[role].label})`;
         document.getElementById('pageSubtitle').innerText = `Support Ticket Logs and Diagnostic Information`;
         this.renderTicketDetailView(canvas);
+        lucide.createIcons();
+        return;
+      }
+
+      if (menu === 'users') {
+        document.getElementById('pageTitle').innerText = `Users & Requests (${roleProfiles[role].label})`;
+        document.getElementById('pageSubtitle').innerText = `User accounts directory and API request analytics logs`;
+        this.renderUsersView(canvas);
+        lucide.createIcons();
+        return;
+      }
+
+      if (menu === 'settings') {
+        document.getElementById('pageTitle').innerText = `AI Settings & Billing (${roleProfiles[role].label})`;
+        document.getElementById('pageSubtitle').innerText = `AI model configuration panel, usage reports, and billing metrics`;
+        this.renderSettingsView(canvas);
         lucide.createIcons();
         return;
       }
