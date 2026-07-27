@@ -59,52 +59,6 @@ window.BotNBoltMockData = {
       },
       {
         id: "C-002",
-        name: "My Depot",
-        logo: "MD",
-        industryType: "Home Improvement",
-        website: "https://www.mydepot.ca",
-        address: "742 Rue Saint-Catherine, Montreal",
-        province: "Quebec",
-        contactPerson: "Chantal Lebeau",
-        email: "c.lebeau@mydepot.ca",
-        phone: "+1 (514) 555-0284",
-        subscriptionPlan: "Premium Standard",
-        contractStart: "2025-06-01",
-        expiryDate: "2026-05-31",
-        totalDealers: 6,
-        activeDealers: 5,
-        apiLimit: 2000,
-        storageUsage: "1.8 GB / 5 GB",
-        status: "Active",
-        customBranding: true,
-        whiteLabel: false,
-        supportManager: "Sarah Connor"
-      },
-      {
-        id: "C-003",
-        name: "Rona",
-        logo: "RN",
-        industryType: "Home Improvement Retail",
-        website: "https://www.rona.ca",
-        address: "220 Chemin du Tremblay, Boucherville",
-        province: "Quebec",
-        contactPerson: "Arthur Pendelton",
-        email: "apendelton@rona.ca",
-        phone: "+1 (450) 555-0322",
-        subscriptionPlan: "Enterprise Platinum",
-        contractStart: "2024-03-10",
-        expiryDate: "2026-07-28",
-        totalDealers: 6,
-        activeDealers: 6,
-        apiLimit: 10000,
-        storageUsage: "8.9 GB / 20 GB",
-        status: "Active",
-        customBranding: true,
-        whiteLabel: true,
-        supportManager: "Alex Mercer"
-      },
-      {
-        id: "C-004",
         name: "BMR Group",
         logo: "BG",
         industryType: "Hardware & Lumber",
@@ -125,29 +79,6 @@ window.BotNBoltMockData = {
         customBranding: true,
         whiteLabel: false,
         supportManager: "David Miller"
-      },
-      {
-        id: "C-005",
-        name: "Tottens",
-        logo: "TT",
-        industryType: "Building Supplies",
-        website: "https://www.tottens.ca",
-        address: "44 Portage Ave, Winnipeg",
-        province: "Manitoba",
-        contactPerson: "Derrick Bell",
-        email: "d.bell@tottens.ca",
-        phone: "+1 (204) 555-0912",
-        subscriptionPlan: "Premium Standard",
-        contractStart: "2025-11-01",
-        expiryDate: "2026-10-31",
-        totalDealers: 9,
-        activeDealers: 8,
-        apiLimit: 2000,
-        storageUsage: "1.2 GB / 5 GB",
-        status: "Active",
-        customBranding: false,
-        whiteLabel: false,
-        supportManager: "Sarah Connor"
       }
     ],
     dealers: [
@@ -162,47 +93,20 @@ window.BotNBoltMockData = {
       { id: "DLR-HH-08", name: "Home hardware 08", company: "Home hardware", city: "Vancouver", location: "1045 Georgia St W", province: "British Columbia", manager: "Arthur Pendelton", phone: "+1 (604) 555-0322", email: "hh08@hhdealers.com", monthlyRequests: 110, materialSales: 9800, conversionRate: 75.2, rating: 4.7, lastActive: "Today, 11:00 AM", status: "Active" },
       { id: "DLR-HH-09", name: "Home hardware 09", company: "Home hardware", city: "Brampton", location: "99 Brampton Rd", province: "Ontario", manager: "Elena Rostova", phone: "+1 (905) 555-0455", email: "hh09@hhdealers.com", monthlyRequests: 20, materialSales: 1200, conversionRate: 50.0, rating: 4.0, lastActive: "2 weeks ago", status: "Disabled" },
 
-      // 2. My Depot (6 dealers)
-      { id: "DLR-MD-01", name: "My Depot 01", company: "My Depot", city: "Toronto", location: "120 Yonge St", province: "Ontario", manager: "Alice Wong", phone: "+1 (416) 555-9111", email: "md01@mydepot.com", monthlyRequests: 115, materialSales: 9400, conversionRate: 71.2, rating: 4.5, lastActive: "Today, 10:30 AM", status: "Active" },
-      { id: "DLR-MD-02", name: "My Depot 02", company: "My Depot", city: "Montreal", location: "555 Rue St-Denis", province: "Quebec", manager: "Pierre Seguin", phone: "+1 (514) 555-9112", email: "md02@mydepot.com", monthlyRequests: 85, materialSales: 7200, conversionRate: 68.0, rating: 4.4, lastActive: "Yesterday", status: "Active" },
-      { id: "DLR-MD-03", name: "My Depot 03", company: "My Depot", city: "Calgary", location: "888 17 Ave SW", province: "Alberta", manager: "Keith Richards", phone: "+1 (403) 555-9113", email: "md03@mydepot.com", monthlyRequests: 50, materialSales: 3100, conversionRate: 60.1, rating: 4.2, lastActive: "Yesterday", status: "Active" },
-      { id: "DLR-MD-04", name: "My Depot 04", company: "My Depot", city: "Edmonton", location: "9910 108 St NW", province: "Alberta", manager: "Sarah Connor", phone: "+1 (780) 555-9114", email: "md04@mydepot.com", monthlyRequests: 35, materialSales: 2100, conversionRate: 58.4, rating: 4.1, lastActive: "3 days ago", status: "Active" },
-      { id: "DLR-MD-05", name: "My Depot 05", company: "My Depot", city: "Vancouver", location: "220 Georgia St W", province: "British Columbia", manager: "Winston Smith", phone: "+1 (604) 555-9115", email: "md05@mydepot.com", monthlyRequests: 95, materialSales: 8100, conversionRate: 73.0, rating: 4.6, lastActive: "Today, 09:40 AM", status: "Active" },
-      { id: "DLR-MD-06", name: "My Depot 06", company: "My Depot", city: "Brampton", location: "10 Main St S", province: "Ontario", manager: "David Miller", phone: "+1 (905) 555-9116", email: "md06@mydepot.com", monthlyRequests: 0, materialSales: 0, conversionRate: 0, rating: 0, lastActive: "Never", status: "Disabled" },
-
-      // 3. Rona (6 dealers)
-      { id: "DLR-RN-01", name: "Rona 01", company: "Rona", city: "Toronto", location: "400 Keele St", province: "Ontario", manager: "John Doe", phone: "+1 (416) 555-9211", email: "rn01@rona.com", monthlyRequests: 110, materialSales: 9100, conversionRate: 70.5, rating: 4.4, lastActive: "Today, 11:15 AM", status: "Active" },
-      { id: "DLR-RN-02", name: "Rona 02", company: "Rona", city: "Montreal", location: "900 Rue Sherbrooke", province: "Quebec", manager: "Jacques Cartier", phone: "+1 (514) 555-9212", email: "rn02@rona.com", monthlyRequests: 80, materialSales: 6800, conversionRate: 67.2, rating: 4.3, lastActive: "Yesterday", status: "Active" },
-      { id: "DLR-RN-03", name: "Rona 03", company: "Rona", city: "Calgary", location: "1200 37 St SW", province: "Alberta", manager: "Alex Mercer", phone: "+1 (403) 555-9213", email: "rn03@rona.com", monthlyRequests: 60, materialSales: 3900, conversionRate: 63.5, rating: 4.2, lastActive: "Yesterday", status: "Active" },
-      { id: "DLR-RN-04", name: "Rona 04", company: "Rona", city: "Edmonton", location: "11100 100 St NW", province: "Alberta", manager: "Lara Croft", phone: "+1 (780) 555-9214", email: "rn04@rona.com", monthlyRequests: 30, materialSales: 1800, conversionRate: 56.1, rating: 4.0, lastActive: "4 days ago", status: "Active" },
-      { id: "DLR-RN-05", name: "Rona 05", company: "Rona", city: "Ottawa", location: "300 Hunt Club Rd", province: "Ontario", manager: "Emma Watson", phone: "+1 (613) 555-9215", email: "rn05@rona.com", monthlyRequests: 75, materialSales: 5900, conversionRate: 68.4, rating: 4.5, lastActive: "Today, 08:30 AM", status: "Active" },
-      { id: "DLR-RN-06", name: "Rona 06", company: "Rona", city: "Winnipeg", location: "1500 Regent Ave W", province: "Manitoba", manager: "Derrick Bell", phone: "+1 (204) 555-9216", email: "rn06@rona.com", monthlyRequests: 48, materialSales: 3200, conversionRate: 61.2, rating: 4.1, lastActive: "5 days ago", status: "Active" },
-
-      // 4. BMR Group (6 dealers)
+      // 2. BMR Group (6 dealers)
       { id: "DLR-BG-01", name: "BMR Group 01", company: "BMR Group", city: "Toronto", location: "2500 Dufferin St", province: "Ontario", manager: "Jack Ryan", phone: "+1 (416) 555-9311", email: "bmr01@bmr.com", monthlyRequests: 95, materialSales: 7800, conversionRate: 68.4, rating: 4.3, lastActive: "Today, 10:00 AM", status: "Active" },
       { id: "DLR-BG-02", name: "BMR Group 02", company: "BMR Group", city: "Montreal", location: "444 Rue Jean-Talon", province: "Quebec", manager: "Marie Curie", phone: "+1 (514) 555-9312", email: "bmr02@bmr.com", monthlyRequests: 70, materialSales: 5800, conversionRate: 64.2, rating: 4.2, lastActive: "Yesterday", status: "Active" },
       { id: "DLR-BG-03", name: "BMR Group 03", company: "BMR Group", city: "Calgary", location: "333 36 St NE", province: "Alberta", manager: "Bruce Wayne", phone: "+1 (403) 555-9313", email: "bmr03@bmr.com", monthlyRequests: 45, materialSales: 2900, conversionRate: 59.8, rating: 4.1, lastActive: "Yesterday", status: "Active" },
       { id: "DLR-BG-04", name: "BMR Group 04", company: "BMR Group", city: "Edmonton", location: "8888 137 Ave NW", province: "Alberta", manager: "Clark Kent", phone: "+1 (780) 555-9314", email: "bmr04@bmr.com", monthlyRequests: 28, materialSales: 1600, conversionRate: 52.5, rating: 3.9, lastActive: "Yesterday", status: "Active" },
       { id: "DLR-BG-05", name: "BMR Group 05", company: "BMR Group", city: "Ottawa", location: "1901 St. Laurent Blvd", province: "Ontario", manager: "Lois Lane", phone: "+1 (613) 555-9315", email: "bmr05@bmr.com", monthlyRequests: 62, materialSales: 4900, conversionRate: 65.0, rating: 4.4, lastActive: "Today, 09:00 AM", status: "Active" },
-      { id: "DLR-BG-06", name: "BMR Group 06", company: "BMR Group", city: "Winnipeg", location: "800 Nairn Ave", province: "Manitoba", manager: "Peter Parker", phone: "+1 (204) 555-9316", email: "bmr06@bmr.com", monthlyRequests: 40, materialSales: 2700, conversionRate: 58.2, rating: 4.0, lastActive: "3 days ago", status: "Active" },
-
-      // 5. Tottens (9 dealers)
-      { id: "DLR-TT-01", name: "Tottens 01", company: "Tottens", city: "Toronto", location: "600 Warden Ave", province: "Ontario", manager: "Tony Stark", phone: "+1 (416) 555-9411", email: "tt01@tottens.com", monthlyRequests: 130, materialSales: 11200, conversionRate: 76.4, rating: 4.7, lastActive: "Today, 11:45 AM", status: "Active" },
-      { id: "DLR-TT-02", name: "Tottens 02", company: "Tottens", city: "Montreal", location: "1200 Rue Saint-Jacques", province: "Quebec", manager: "Steve Rogers", phone: "+1 (514) 555-9412", email: "tt02@tottens.com", monthlyRequests: 92, materialSales: 8400, conversionRate: 71.0, rating: 4.5, lastActive: "Today, 10:15 AM", status: "Active" },
-      { id: "DLR-TT-03", name: "Tottens 03", company: "Tottens", city: "Calgary", location: "1400 52 St NE", province: "Alberta", manager: "Thor Odinson", phone: "+1 (403) 555-9413", email: "tt03@tottens.com", monthlyRequests: 62, materialSales: 4000, conversionRate: 64.0, rating: 4.4, lastActive: "Yesterday", status: "Active" },
-      { id: "DLR-TT-04", name: "Tottens 04", company: "Tottens", city: "Edmonton", location: "12025 149 St NW", province: "Alberta", manager: "Natasha Romanoff", phone: "+1 (780) 555-9414", email: "tt04@tottens.com", monthlyRequests: 40, materialSales: 2600, conversionRate: 60.5, rating: 4.2, lastActive: "Yesterday", status: "Active" },
-      { id: "DLR-TT-05", name: "Tottens 05", company: "Tottens", city: "Ottawa", location: "2020 Merivale Rd", province: "Ontario", manager: "Clint Barton", phone: "+1 (613) 555-9415", email: "tt05@tottens.com", monthlyRequests: 78, materialSales: 6100, conversionRate: 69.2, rating: 4.6, lastActive: "Yesterday", status: "Active" },
-      { id: "DLR-TT-06", name: "Tottens 06", company: "Tottens", city: "Winnipeg", location: "1122 McPhillips St", province: "Manitoba", manager: "Bruce Banner", phone: "+1 (204) 555-9416", email: "tt06@tottens.com", monthlyRequests: 50, materialSales: 3500, conversionRate: 64.5, rating: 4.3, lastActive: "4 days ago", status: "Active" },
-      { id: "DLR-TT-07", name: "Tottens 07", company: "Tottens", city: "Mississauga", location: "2555 Stanfield Rd", province: "Ontario", manager: "Selina Kyle", phone: "+1 (905) 555-9417", email: "tt07@tottens.com", monthlyRequests: 35, materialSales: 2200, conversionRate: 59.8, rating: 4.1, lastActive: "3 days ago", status: "Active" },
-      { id: "DLR-TT-08", name: "Tottens 08", company: "Tottens", city: "Vancouver", location: "1550 Kingsway", province: "British Columbia", manager: "Arthur Pendelton", phone: "+1 (604) 555-9418", email: "tt08@tottens.com", monthlyRequests: 105, materialSales: 9200, conversionRate: 74.0, rating: 4.6, lastActive: "Today, 10:50 AM", status: "Active" },
-      { id: "DLR-TT-09", name: "Tottens 09", company: "Tottens", city: "Brampton", location: "80 Queen St E", province: "Ontario", manager: "Elena Rostova", phone: "+1 (905) 555-9419", email: "tt09@tottens.com", monthlyRequests: 0, materialSales: 0, conversionRate: 0, rating: 0, lastActive: "Never", status: "Disabled" }
+      { id: "DLR-BG-06", name: "BMR Group 06", company: "BMR Group", city: "Winnipeg", location: "800 Nairn Ave", province: "Manitoba", manager: "Peter Parker", phone: "+1 (204) 555-9316", email: "bmr06@bmr.com", monthlyRequests: 40, materialSales: 2700, conversionRate: 58.2, rating: 4.0, lastActive: "3 days ago", status: "Active" }
     ],
     logs: [
       { id: "LOG-001", timestamp: "2026-07-07 11:20 AM", user: "Marcus Vance", ip: "192.168.1.14", action: "Exported regional dealer analytics spreadsheet", module: "Dealer Management", status: "Success" },
       { id: "LOG-002", timestamp: "2026-07-07 10:45 AM", user: "Sarah Connor", ip: "192.168.1.28", action: "Assigned manager David Miller to Ticket TKT-9042", module: "Support Ticket Desk", status: "Success" },
       { id: "LOG-003", timestamp: "2026-07-07 09:15 AM", user: "Alex Mercer", ip: "10.0.0.145", action: "Attempted login with expired password", module: "Authentication Gate", status: "Failed Login" },
       { id: "LOG-004", timestamp: "2026-07-07 08:30 AM", user: "System Scheduler", ip: "127.0.0.1", action: "Triggered nightly model performance sweep", module: "AI Engine Core", status: "Success" },
-      { id: "LOG-005", timestamp: "2026-07-07 07:12 AM", user: "Nihit Sharma", ip: "192.168.1.5", action: "Created new company BMR Group", module: "Partner Desk", status: "Success" },
+      { id: "LOG-005", timestamp: "2026-07-07 07:12 AM", user: "Nihit Sharma", ip: "192.168.1.5", action: "Created new tenant BMR Group", module: "Partner Desk", status: "Success" },
       { id: "LOG-006", timestamp: "2026-07-06 04:30 PM", user: "David Miller", ip: "192.168.2.19", action: "Updated API Limit to 5000 requests", module: "Subscription Manager", status: "Success" },
       { id: "LOG-007", timestamp: "2026-07-06 02:15 PM", user: "Emma Watson", ip: "192.168.2.40", action: "Resolved support ticket TKT-8951", module: "Support Ticket Desk", status: "Success" },
       { id: "LOG-008", timestamp: "2026-07-06 11:00 AM", user: "System Monitor", ip: "127.0.0.1", action: "Detected high CPU load on Image Workers", module: "Infrastructure", status: "Warning" },
@@ -245,7 +149,7 @@ window.BotNBoltMockData = {
         sessions: [15000, 18000, 22000, 27000, 29000, 31000]
       },
       dealerPerformance: {
-        labels: ["Home hardware 01 - Toronto", "Rona 03 - Calgary", "My Depot 02 - Montreal", "Home hardware 05 - Ottawa", "Tottens 08 - Vancouver"],
+        labels: ["Home hardware 01 - Toronto", "BMR Group 01 - Toronto", "Home hardware 05 - Ottawa", "BMR Group 02 - Montreal", "Home hardware 08 - Vancouver"],
         data: [94, 91, 89, 87, 82]
       },
       mapData: [
@@ -428,26 +332,20 @@ window.BotNBoltMockData = {
   supportAdmin: {
     tickets: [
       { id: "TKT-9042", issueType: "AI Wrong Detection", customerName: "Robert Chen", company: "Home hardware", dealer: "Home hardware 01", priority: "High", status: "Open", assignedTo: "David Miller", responseTime: "15 min", resolutionTime: "Pending", date: "2026-07-07 10:30 AM" },
-      { id: "TKT-9038", issueType: "Login Issues", customerName: "Pierre Seguin", company: "My Depot", dealer: "My Depot 02", priority: "Medium", status: "In Progress", assignedTo: "Sarah Connor", responseTime: "45 min", resolutionTime: "Pending", date: "2026-07-07 09:12 AM" },
+      { id: "TKT-9038", issueType: "Login Issues", customerName: "Pierre Seguin", company: "Home hardware", dealer: "Home hardware 02", priority: "Medium", status: "In Progress", assignedTo: "Sarah Connor", responseTime: "45 min", resolutionTime: "Pending", date: "2026-07-07 09:12 AM" },
       { id: "TKT-9015", issueType: "Billing Issues", customerName: "Marcus Vance", company: "Home hardware", dealer: "HQ Admin", priority: "High", status: "Open", assignedTo: "Unassigned", responseTime: "Not Responded", resolutionTime: "Pending", date: "2026-07-07 07:05 AM" },
-      { id: "TKT-8951", issueType: "API Failure", customerName: "Alex Mercer", company: "Rona", dealer: "Rona 03", priority: "High", status: "Resolved", assignedTo: "Alex Mercer", responseTime: "8 min", resolutionTime: "34 min", date: "2026-07-06 03:22 PM" },
+      { id: "TKT-8951", issueType: "API Failure", customerName: "Alex Mercer", company: "BMR Group", dealer: "BMR Group 01", priority: "High", status: "Resolved", assignedTo: "Alex Mercer", responseTime: "8 min", resolutionTime: "34 min", date: "2026-07-06 03:22 PM" },
       { id: "TKT-8840", issueType: "Dealer Access Problem", customerName: "Clark Kent", company: "BMR Group", dealer: "BMR Group 04", priority: "Low", status: "Resolved", assignedTo: "David Miller", responseTime: "2 hours", resolutionTime: "4 hours", date: "2026-07-05 01:10 PM" },
-      { id: "TKT-8799", issueType: "Website Integration Issue", customerName: "Clint Barton", company: "Tottens", dealer: "Tottens 05", priority: "Medium", status: "Resolved", assignedTo: "Sarah Connor", responseTime: "1 hour", resolutionTime: "3 hours", date: "2026-07-04 10:05 AM" }
+      { id: "TKT-8799", issueType: "Website Integration Issue", customerName: "Clint Barton", company: "BMR Group", dealer: "BMR Group 02", priority: "Medium", status: "Resolved", assignedTo: "Sarah Connor", responseTime: "1 hour", resolutionTime: "3 hours", date: "2026-07-04 10:05 AM" }
     ],
     companySupportOverview: [
       { name: "Home hardware", activeTickets: 2, escalatedTickets: 1, integrationStatus: "Active", lastContacted: "Today, 11:20 AM" },
-      { name: "My Depot", activeTickets: 1, escalatedTickets: 0, integrationStatus: "Active", lastContacted: "Today, 09:15 AM" },
-      { name: "Rona", activeTickets: 0, escalatedTickets: 0, integrationStatus: "Active", lastContacted: "Yesterday, 04:30 PM" },
-      { name: "BMR Group", activeTickets: 0, escalatedTickets: 0, integrationStatus: "Active", lastContacted: "3 days ago" },
-      { name: "Tottens", activeTickets: 0, escalatedTickets: 0, integrationStatus: "Integration Blocked", lastContacted: "Never" }
+      { name: "BMR Group", activeTickets: 0, escalatedTickets: 0, integrationStatus: "Active", lastContacted: "3 days ago" }
     ],
     dealerSupport: [
       { dealerName: "Home hardware 01", city: "Toronto", storeIssues: "API mismatch on login", loginProblems: 2, aiComplaints: 4, customerComplaints: 0 },
       { dealerName: "Home hardware 05", city: "Ottawa", storeIssues: "Slow image uploading", loginProblems: 1, aiComplaints: 1, customerComplaints: 1 },
-      { dealerName: "My Depot 02", city: "Montreal", storeIssues: "None", loginProblems: 0, aiComplaints: 2, customerComplaints: 0 },
-      { dealerName: "Rona 03", city: "Calgary", storeIssues: "None", loginProblems: 0, aiComplaints: 0, customerComplaints: 0 },
-      { dealerName: "BMR Group 04", city: "Edmonton", storeIssues: "None", loginProblems: 0, aiComplaints: 0, customerComplaints: 0 },
-      { dealerName: "Tottens 08", city: "Vancouver", storeIssues: "Authentication keys expired", loginProblems: 5, aiComplaints: 1, customerComplaints: 2 }
+      { dealerName: "BMR Group 04", city: "Edmonton", storeIssues: "None", loginProblems: 0, aiComplaints: 0, customerComplaints: 0 }
     ],
     aiErrorReports: [
       {
@@ -468,7 +366,7 @@ window.BotNBoltMockData = {
         wrongDetectionType: "Corrosion (Medium)",
         expectedResult: "Chips (Multiple Light) + Dent",
         aiConfidenceScore: 84.1,
-        reportedBy: "My Depot 02",
+        reportedBy: "BMR Group 02",
         status: "In Review",
         notes: "Gravel chip rust outline led to corrosion classification. Over-confidence issue."
       },
@@ -490,6 +388,177 @@ window.BotNBoltMockData = {
       activeSessions: 342,
       failedRequests: 14,
       integrationStats: { active: 38, error: 2, inactive: 8 }
+    },
+    tenantAwsBilling: {
+      kpis: {
+        totalAwsCost: 7570.20,
+        awsCostChange: "+4.2%",
+        totalRevenue: 42200.00,
+        revenueChange: "+12.8%",
+        grossProfit: 34629.80,
+        profitMargin: 82.06,
+        activeTenants: 2,
+        newTenants: "+0 New",
+        totalRequests: "1.67M",
+        requestsChange: "+14.2%",
+        totalStorage: "21.2 TB",
+        storageGrowth: "+2.1 TB"
+      },
+      topInsights: {
+        highestCostTenant: { name: "Home Hardware", logo: "HH", cost: "$6,150.20", trend: "+4.2%" },
+        highestStorageConsumer: { name: "Home Hardware", logo: "HH", storage: "18.4 TB", trend: "+4.1%" },
+        highestAiUsage: { name: "Home Hardware", logo: "HH", usage: "112.5M Tokens ($1,950.20 Bedrock)", trend: "+8.4%" },
+        mostProfitableCustomer: { name: "BMR Group", logo: "BG", profit: "$8,380.00 (85.5% Margin)", trend: "+6.2%" }
+      },
+      awsCostDistribution: [
+        { service: "Amazon S3", percentage: 41, cost: 3070.00, color: "#10b981" },
+        { service: "Amazon Bedrock", percentage: 34, cost: 2590.20, color: "#2563eb" },
+        { service: "Amazon ECS / Fargate", percentage: 13, cost: 1000.00, color: "#f59e0b" },
+        { service: "API Gateway", percentage: 7, cost: 560.00, color: "#8b5cf6" },
+        { service: "Amazon Textract", percentage: 5, cost: 350.00, color: "#ec4899" }
+      ],
+      monthlyCostTrend: {
+        labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
+        costs: [5200, 5600, 6100, 6400, 6800, 7150, 7570.20]
+      },
+      tenants: [
+        {
+          id: "TNT-001",
+          name: "Home Hardware",
+          logo: "HH",
+          plan: "Enterprise Platinum",
+          activeUsers: 320,
+          monthlyRequests: "1,250,000",
+          storageUsed: "18.4 TB",
+          aiTokens: "112.5M",
+          awsCost: 6150.20,
+          customerInvoice: 32400.00,
+          profit: 26249.80,
+          profitMargin: "81.0%",
+          invoiceStatus: "Paid",
+          country: "Canada",
+          joinedDate: "2024-03-20",
+          region: "ca-central-1",
+          breakdown: {
+            requests: { total: "1,250,000", images: "620,000", pdfs: "280,000", voice: "90,000", aiConvos: "260,000" },
+            infra: { storage: "18.4 TB", tokens: "112.5M", ocrPages: "310,000", apiCalls: "1.25M", cpuHours: "2,400", bandwidth: "9.8 TB", vectorSearches: "380,000" },
+            financials: { estAwsCost: 6150.20, invoice: 32400.00, grossProfit: 26249.80, outstanding: 0.00 },
+            services: [
+              { name: "Amazon S3", usage: "18.4 TB", unit: "TB-Month", cost: 2650.00, pct: 43.1 },
+              { name: "Amazon Bedrock", usage: "112.5M Tokens", unit: "Tokens", cost: 1950.20, pct: 31.7 },
+              { name: "Amazon ECS/Fargate", usage: "2,400 Hrs", unit: "vCPU-Hrs", cost: 780.00, pct: 12.7 },
+              { name: "API Gateway", usage: "1.25M Calls", unit: "Requests", cost: 420.00, pct: 6.8 },
+              { name: "Amazon Textract", usage: "310K Pages", unit: "Pages", cost: 350.00, pct: 5.7 }
+            ]
+          }
+        },
+        {
+          id: "TNT-002",
+          name: "BMR Group",
+          logo: "BG",
+          plan: "Premium Standard",
+          activeUsers: 150,
+          monthlyRequests: "420,000",
+          storageUsed: "2.8 TB",
+          aiTokens: "38.6M",
+          awsCost: 1420.00,
+          customerInvoice: 9800.00,
+          profit: 8380.00,
+          profitMargin: "85.5%",
+          invoiceStatus: "Paid",
+          country: "Canada",
+          joinedDate: "2025-02-01",
+          region: "ca-central-1",
+          breakdown: {
+            requests: { total: "420,000", images: "180,000", pdfs: "90,000", voice: "30,000", aiConvos: "120,000" },
+            infra: { storage: "2.8 TB", tokens: "38.6M", ocrPages: "85,000", apiCalls: "420K", cpuHours: "620", bandwidth: "2.6 TB", vectorSearches: "110,000" },
+            financials: { estAwsCost: 1420.00, invoice: 9800.00, grossProfit: 8380.00, outstanding: 0.00 },
+            services: [
+              { name: "Amazon Bedrock", usage: "38.6M Tokens", unit: "Tokens", cost: 640.00, pct: 45.1 },
+              { name: "Amazon S3", usage: "2.8 TB", unit: "TB-Month", cost: 420.00, pct: 29.6 },
+              { name: "Amazon ECS/Fargate", usage: "620 Hrs", unit: "vCPU-Hrs", cost: 220.00, pct: 15.5 },
+              { name: "API Gateway", usage: "420K Calls", unit: "Requests", cost: 140.00, pct: 9.8 }
+            ]
+          }
+        }
+      ],
+      storageAnalytics: {
+        metrics: {
+          images: "24.2 TB",
+          pdfs: "14.6 TB",
+          reports: "4.8 TB",
+          voice: "2.4 TB",
+          videos: "1.8 TB",
+          deleted: "0.6 TB",
+          archivedGlacier: "12.4 TB",
+          retentionPolicy: "90 Days Auto-Archive to Glacier Deep Archive",
+          monthlyGrowth: "+3.2 TB / mo"
+        },
+        trend: {
+          labels: ["Feb", "Mar", "Apr", "May", "Jun", "Jul"],
+          dataTB: [32.4, 35.8, 39.1, 42.6, 45.4, 48.6]
+        }
+      },
+      aiUsageAnalytics: {
+        metrics: {
+          inputTokens: "842.5M",
+          outputTokens: "421.2M",
+          avgTokensPerReq: "1,248",
+          aiRequests: "1.01M",
+          avgAiCost: "$0.012",
+          avgResponseTime: "185 ms",
+          mostUsedModel: "OpenAI GPT-4 Vision"
+        },
+        tokenTrend: {
+          labels: ["Jul 18", "Jul 19", "Jul 20", "Jul 21", "Jul 22", "Jul 23", "Jul 24"],
+          input: [110, 125, 118, 142, 135, 150, 162],
+          output: [55, 62, 59, 71, 68, 75, 81]
+        },
+        dailyCost: {
+          labels: ["Jul 18", "Jul 19", "Jul 20", "Jul 21", "Jul 22", "Jul 23", "Jul 24"],
+          costs: [340, 380, 360, 440, 410, 480, 520]
+        },
+        modelDistribution: [
+          { model: "OpenAI GPT-4 Vision", percentage: 58, color: "#2563eb" },
+          { model: "OpenAI GPT-4o", percentage: 24, color: "#10b981" },
+          { model: "Qdrant Vector Engine", percentage: 12, color: "#f59e0b" },
+          { model: "Amazon Textract OCR", percentage: 6, color: "#8b5cf6" }
+        ]
+      },
+      requestAnalytics: [
+        { id: "REQ-9901", user: "Marcus Vance", tenant: "Home Hardware", module: "AI Surface Scan", model: "OpenAI GPT-4 Vision", storage: "14.2 MB", services: "S3, OpenAI, Qdrant VectorDB", time: "182 ms", cost: "$0.018", date: "2026-07-24 12:44:12" },
+        { id: "REQ-9902", user: "Sarah Jenkins", tenant: "Home Hardware", module: "Material Estimator", model: "OpenAI GPT-4o", storage: "8.4 MB", services: "S3, OpenAI, Qdrant VectorDB", time: "145 ms", cost: "$0.014", date: "2026-07-24 12:41:05" },
+        { id: "REQ-9903", user: "David Miller", tenant: "Home Hardware", module: "SKU Catalog Match", model: "Qdrant Vector Engine", storage: "2.1 MB", services: "S3, Qdrant VectorDB", time: "92 ms", cost: "$0.006", date: "2026-07-24 12:38:50" },
+        { id: "REQ-9904", user: "Elena Rostova", tenant: "BMR Group", module: "Structural Analysis", model: "AWS Bedrock (Claude 3.5)", storage: "22.6 MB", services: "S3, Textract, Bedrock", time: "240 ms", cost: "$0.024", date: "2026-07-24 12:35:19" },
+        { id: "REQ-9905", user: "Alex Mercer", tenant: "BMR Group", module: "Product Recommendation", model: "OpenAI GPT-4o", storage: "4.8 MB", services: "S3, OpenAI, Qdrant VectorDB", time: "110 ms", cost: "$0.008", date: "2026-07-24 12:25:01" },
+        { id: "REQ-9906", user: "Clark Kent", tenant: "BMR Group", module: "PDF Repair Guide OCR", model: "Amazon Textract OCR", storage: "18.9 MB", services: "S3, Textract", time: "420 ms", cost: "$0.032", date: "2026-07-24 12:18:30" }
+      ],
+      billingSummary: {
+        awsInfraCost: 7570.20,
+        platformCharges: 25000.00,
+        aiServiceCharges: 9630.00,
+        supportCharges: 2000.00,
+        discounts: -2000.00,
+        taxes: 5486.00,
+        finalInvoiceAmount: 47686.20
+      },
+      billingEvents: [
+        { id: "EVT-101", timestamp: "10 mins ago", company: "Home Hardware", eventType: "Invoice Generated", detail: "Monthly invoice #INV-2026-0701 generated for $32,400.00", status: "Success", icon: "file-check" },
+        { id: "EVT-102", timestamp: "1 hour ago", company: "Home Hardware", eventType: "Invoice Sent", detail: "Automated billing summary PDF emailed to finance@homehardware.ca", status: "Success", icon: "mail" },
+        { id: "EVT-103", timestamp: "3 hours ago", company: "BMR Group", eventType: "Payment Received", detail: "ACH Direct Deposit of $9,800.00 confirmed by Stripe Ledger", status: "Success", icon: "credit-card" },
+        { id: "EVT-104", timestamp: "5 hours ago", company: "Home Hardware", eventType: "Storage Increased", detail: "Auto-scaling S3 bucket threshold adjusted (+4.5 TB scaling allocation)", status: "Info", icon: "database" },
+        { id: "EVT-105", timestamp: "8 hours ago", company: "BMR Group", eventType: "AI Usage Spike", detail: "Token throughput exceeded 30M threshold (+24% surge in AI requests)", status: "Warning", icon: "zap" },
+        { id: "EVT-106", timestamp: "12 hours ago", company: "BMR Group", eventType: "Budget Alert", detail: "AWS monthly consumption reached 85% of assigned quota ($1,420 / $1,600)", status: "Warning", icon: "alert-triangle" }
+      ],
+      recommendations: [
+        { id: "REC-01", title: "Reduce Unused S3 Temp Storage", savings: "$1,240 / mo", priority: "High", desc: "Automate 7-day lifecycle purge policy on temporary upload buckets across all enterprise tenants.", action: "Apply Auto-Purge" },
+        { id: "REC-02", title: "Archive Inactive PDF Manuals", savings: "$850 / mo", priority: "Medium", desc: "Move PDF technical manuals older than 60 days to Amazon S3 Glacier Flexible Retrieval.", action: "Migrate to Glacier" },
+        { id: "REC-03", title: "Enable Image WebP Compression", savings: "$620 / mo", priority: "Medium", desc: "Compress uploaded terminal diagnostic photos to WebP before writing to S3 storage.", action: "Enable Compression" },
+        { id: "REC-04", title: "Optimize AI Prompt Tokens", savings: "$2,150 / mo", priority: "High", desc: "Trim redundant context tokens in system prompt templates for Bedrock inference calls.", action: "Trim Prompt Tokens" },
+        { id: "REC-05", title: "Enable Bedrock Response Caching", savings: "$3,400 / mo", priority: "High", desc: "Cache common hardware SKU lookup embeddings using ElastiCache Redis cluster.", action: "Enable Caching" },
+        { id: "REC-06", title: "Move Old Files to Glacier Deep", savings: "$1,100 / mo", priority: "Low", desc: "Transition repair logs older than 180 days to S3 Glacier Deep Archive tier.", action: "Configure Rule" },
+        { id: "REC-07", title: "Delete Expired Temporary Files", savings: "$480 / mo", priority: "Low", desc: "Purge unreferenced temporary scan uploads and transient thumbnail images.", action: "Clean Temp Uploads" }
+      ]
     }
   }
 };
@@ -498,3 +567,4 @@ window.BotNBoltMockData = {
 window.BotNBoltMockData.companyAdmin.dealers = window.BotNBoltMockData.superAdmin.dealers.filter(
   d => d.company === "Home hardware"
 );
+window.BotNBoltMockData.superAdmin.tenantAwsBilling = window.BotNBoltMockData.supportAdmin.tenantAwsBilling;

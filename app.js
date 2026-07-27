@@ -27,13 +27,14 @@
     dealer_detail: 'store',
     ticket_detail: 'ticket',
     users: 'user',
-    settings: 'settings'
+    settings: 'settings',
+    aws_billing: 'server-cog'
   };
 
   // Nav labels
   const navLabels = {
     overview: 'Overview',
-    companies: 'Companies',
+    companies: 'Tenants',
     dealers: 'Dealers',
     ai_analytics: 'AI Repair Analytics',
     repair_analytics: 'Repair Analytics',
@@ -52,17 +53,18 @@
     revenue: 'Revenue Overview',
     ai_cost: 'AI Cost Breakdown',
     model_performance: 'Model Performance',
-    company_detail: 'Company Detail',
+    company_detail: 'Tenant Detail',
     dealer_detail: 'Dealer Detail',
     ticket_detail: 'Ticket Details',
     users: 'Users & Requests',
-    settings: 'AI Config & Billing'
+    settings: 'AI Config & Billing',
+    aws_billing: 'Tenant AWS Usage & Billing'
   };
 
   // Profiles mapping by role
   const roleProfiles = {
     superAdmin: { name: 'Nihit Sharma', avatar: 'SA', label: 'Super Admin' },
-    companyAdmin: { name: 'Apex HQ Manager', avatar: 'HQ', label: 'Company Admin (Apex)' },
+    companyAdmin: { name: 'Apex HQ Manager', avatar: 'HQ', label: 'Tenant Admin (Apex)' },
     dealer: { name: 'Apex Toronto Staff', avatar: 'DL', label: 'Dealer Manager' },
     supportAdmin: { name: 'Sarah Connor', avatar: 'SP', label: 'Support Lead' }
   };
@@ -82,7 +84,7 @@
         checkedRows: {},
         selectedCompanyId: null,
         selectedDealerId: null,
-        selectedCategory: 'Repair and Analyse'
+        selectedCategory: 'All'
       };
 
       this.init();
@@ -111,6 +113,11 @@
             this.state.db.dealer.materialRecommendations = JSON.parse(JSON.stringify(window.BotNBoltMockData.dealer.materialRecommendations));
             this.saveState();
           }
+
+          if (this.state.db.superAdmin && !this.state.db.superAdmin.tenantAwsBilling) {
+            this.state.db.superAdmin.tenantAwsBilling = JSON.parse(JSON.stringify(window.BotNBoltMockData.superAdmin.tenantAwsBilling));
+            this.saveState();
+          }
         } catch (e) {
           console.warn("Discarding saved state:", e.message);
           this.state.db = JSON.parse(JSON.stringify(window.BotNBoltMockData));
@@ -120,59 +127,66 @@
         this.state.db = JSON.parse(JSON.stringify(window.BotNBoltMockData));
       }
 
+      // Self-healing database initialization: enforce 2 active tenants (Home hardware & BMR Group)
+      if (this.state.db && this.state.db.superAdmin) {
+        this.state.db.superAdmin.companies = JSON.parse(JSON.stringify(window.BotNBoltMockData.superAdmin.companies));
+        this.state.db.superAdmin.dealers = JSON.parse(JSON.stringify(window.BotNBoltMockData.superAdmin.dealers));
+        this.state.db.superAdmin.tenantAwsBilling = JSON.parse(JSON.stringify(window.BotNBoltMockData.superAdmin.tenantAwsBilling));
+        if (this.state.db.supportAdmin) {
+          this.state.db.supportAdmin.companySupportOverview = JSON.parse(JSON.stringify(window.BotNBoltMockData.supportAdmin.companySupportOverview));
+          this.state.db.supportAdmin.dealerSupport = JSON.parse(JSON.stringify(window.BotNBoltMockData.supportAdmin.dealerSupport));
+        }
+        this.state.db.users = [
+          { id: "CUST-001", name: "David Beckham", email: "david.beck@gmail.com", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 15:30", requestsCount: 24 },
+          { id: "CUST-002", name: "Emma Watson", email: "emma@yahoo.com", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 17:10", requestsCount: 18 },
+          { id: "CUST-005", name: "Clark Kent", email: "clark@dailyplanet.com", role: "Customer", company: "BMR Group", status: "Active", lastActive: "2026-07-15 11:00", requestsCount: 9 },
+          { id: "CUST-007", name: "Peter Parker", email: "peter.p@dailybugle.com", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 14:20", requestsCount: 28 },
+          { id: "CUST-010", name: "Natasha Romanoff", email: "nat@shield.gov", role: "Customer", company: "BMR Group", status: "Active", lastActive: "2026-07-15 16:40", requestsCount: 19 },
+          { id: "CUST-012", name: "Thor Odinson", email: "thor@asgard.gov", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 14:15", requestsCount: 5 }
+        ];
+        this.state.db.userRequests = [
+          { id: "REQ-2001", customerId: "CUST-001", customerName: "David Beckham", customerEmail: "david.beck@gmail.com", company: "Home hardware", dealer: "Home hardware 01", type: "AI Diagnosis Scan", payload: "Scanned cracked oak dining table surface", aiResponse: "FlexResin Wood Filler + Walnut Stain matched", duration: 240, timestamp: "2026-07-15 15:30", status: "Success" },
+          { id: "REQ-2002", customerId: "CUST-002", customerName: "Emma Watson", customerEmail: "emma@yahoo.com", company: "Home hardware", dealer: "Home hardware 02", type: "AI Product Match", payload: "Waterproofing sealant for concrete planter", aiResponse: "Aquashield Premium Epoxy matched", duration: 185, timestamp: "2026-07-15 17:10", status: "Success" },
+          { id: "REQ-2005", customerId: "CUST-005", customerName: "Clark Kent", customerEmail: "clark@dailyplanet.com", company: "BMR Group", dealer: "BMR Group 02", type: "AI Product Match", payload: "Dry outdoor rust-resistant metal spray paint", aiResponse: "RustOleum Stops Rust Gloss Black SKU-2847", duration: 120, timestamp: "2026-07-15 11:00", status: "Success" },
+          { id: "REQ-2007", customerId: "CUST-007", customerName: "Peter Parker", customerEmail: "peter.p@dailybugle.com", company: "Home hardware", dealer: "Home hardware 01", type: "AI Diagnosis Scan", payload: "Scanned loose vinyl siding seam", aiResponse: "Siding Lock Tool + Vinyl Siding Nails SKU-8321 matched", duration: 190, timestamp: "2026-07-15 14:20", status: "Success" },
+          { id: "REQ-2010", customerId: "CUST-010", customerName: "Natasha Romanoff", customerEmail: "nat@shield.gov", company: "BMR Group", dealer: "BMR Group 02", type: "AI Support Ticket", payload: "Inquiry: Can I return unused paint cans after 30 days?", aiResponse: "Auto-answered: Return policy allows 90 days on unopened cans", duration: 140, timestamp: "2026-07-15 16:40", status: "Success" },
+          { id: "REQ-2012", customerId: "CUST-012", customerName: "Thor Odinson", customerEmail: "thor@asgard.gov", company: "Home hardware", dealer: "Home hardware 02", type: "AI Product Match", payload: "Query: heavy duty hammer handle replacement wood", aiResponse: "Genuine Hickory Replacement Handle SKU-5092", duration: 115, timestamp: "2026-07-15 14:15", status: "Success" }
+        ];
+        this.saveState();
+      }
+
       // Self-healing database initialization for new tables
       if (!this.state.db.users) {
         this.state.db.users = [
           { id: "CUST-001", name: "David Beckham", email: "david.beck@gmail.com", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 15:30", requestsCount: 24 },
           { id: "CUST-002", name: "Emma Watson", email: "emma@yahoo.com", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 17:10", requestsCount: 18 },
-          { id: "CUST-003", name: "James Bond", email: "007@mi6.gov.uk", role: "Customer", company: "My Depot", status: "Active", lastActive: "2026-07-15 12:45", requestsCount: 32 },
-          { id: "CUST-004", name: "Bruce Wayne", email: "bruce@waynecorp.com", role: "Customer", company: "Rona", status: "Active", lastActive: "2026-07-15 16:15", requestsCount: 45 },
           { id: "CUST-005", name: "Clark Kent", email: "clark@dailyplanet.com", role: "Customer", company: "BMR Group", status: "Active", lastActive: "2026-07-15 11:00", requestsCount: 9 },
-          { id: "CUST-006", name: "Diana Prince", email: "diana@themiscira.org", role: "Customer", company: "Tottens", status: "Active", lastActive: "2026-07-14 09:30", requestsCount: 14 },
           { id: "CUST-007", name: "Peter Parker", email: "peter.p@dailybugle.com", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 14:20", requestsCount: 28 },
-          { id: "CUST-008", name: "Tony Stark", email: "tony@starkindustries.com", role: "Customer", company: "My Depot", status: "Active", lastActive: "2026-07-15 10:10", requestsCount: 64 },
-          { id: "CUST-009", name: "Steve Rogers", email: "cap@avengers.org", role: "Customer", company: "Rona", status: "Active", lastActive: "2026-07-15 17:05", requestsCount: 12 },
           { id: "CUST-010", name: "Natasha Romanoff", email: "nat@shield.gov", role: "Customer", company: "BMR Group", status: "Active", lastActive: "2026-07-15 16:40", requestsCount: 19 },
-          { id: "CUST-011", name: "Bruce Banner", email: "hulk@starklabs.com", role: "Customer", company: "Tottens", status: "Active", lastActive: "2026-07-15 15:55", requestsCount: 37 },
-          { id: "CUST-012", name: "Thor Odinson", email: "thor@asgard.gov", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 14:15", requestsCount: 5 },
-          { id: "CUST-013", name: "Barry Allen", email: "barry.a@ccpd.gov", role: "Customer", company: "My Depot", status: "Active", lastActive: "2026-07-15 11:30", requestsCount: 22 },
-          { id: "CUST-014", name: "Hal Jordan", email: "greenlantern@ferriaerospace.com", role: "Customer", company: "Rona", status: "Active", lastActive: "2026-07-15 16:50", requestsCount: 15 },
-          { id: "CUST-015", name: "Arthur Curry", email: "aquaman@atlantis.org", role: "Customer", company: "Tottens", status: "Active", lastActive: "2026-07-15 17:02", requestsCount: 3 }
+          { id: "CUST-012", name: "Thor Odinson", email: "thor@asgard.gov", role: "Customer", company: "Home hardware", status: "Active", lastActive: "2026-07-15 14:15", requestsCount: 5 }
         ];
       }
 
       if (!this.state.db.userRequests) {
         this.state.db.userRequests = [
-          { id: "REQ-2001", customerId: "CUST-001", customerName: "David Beckham", customerEmail: "david.beck@gmail.com", company: "Home hardware", dealer: "Home hardware Toronto 01", type: "AI Diagnosis Scan", payload: "Scanned cracked oak dining table surface", aiResponse: "FlexResin Wood Filler + Walnut Stain matched", duration: 240, timestamp: "2026-07-15 15:30", status: "Success" },
-          { id: "REQ-2002", customerId: "CUST-002", customerName: "Emma Watson", customerEmail: "emma@yahoo.com", company: "Home hardware", dealer: "Home hardware Toronto 02", type: "AI Product Match", payload: "Waterproofing sealant for concrete planter", aiResponse: "Aquashield Premium Epoxy matched", duration: 185, timestamp: "2026-07-15 17:10", status: "Success" },
-          { id: "REQ-2003", customerId: "CUST-003", customerName: "James Bond", customerEmail: "007@mi6.gov.uk", company: "My Depot", dealer: "My Depot Montreal 01", type: "AI Material Estimate", payload: "Estimate tiles for 12x15 kitchen backsplash", aiResponse: "Requires 180 sq ft Subway Tile + 2 bags Mapei Grout", duration: 310, timestamp: "2026-07-15 12:45", status: "Success" },
-          { id: "REQ-2004", customerId: "CUST-004", customerName: "Bruce Wayne", customerEmail: "bruce@waynecorp.com", company: "Rona", dealer: "Rona Boucherville 01", type: "AI Diagnosis Scan", payload: "Scanned cracked brick foundation wall", aiResponse: "Structural Epoxy Injection Kit SKU-9482 recommended", duration: 420, timestamp: "2026-07-15 16:15", status: "Success" },
-          { id: "REQ-2005", customerId: "CUST-005", customerName: "Clark Kent", customerEmail: "clark@dailyplanet.com", company: "BMR Group", dealer: "BMR Group Montreal 02", type: "AI Product Match", payload: "Dry outdoor rust-resistant metal spray paint", aiResponse: "RustOleum Stops Rust Gloss Black SKU-2847", duration: 120, timestamp: "2026-07-15 11:00", status: "Success" },
-          { id: "REQ-2006", customerId: "CUST-006", customerName: "Diana Prince", customerEmail: "diana@themiscira.org", company: "Tottens", dealer: "Tottens Winnipeg 01", type: "AI Material Estimate", payload: "Calculate wall plaster for 8x20 room drywall finish", aiResponse: "Requires 3 sheets Gyprock Drywall + 1 bucket Joint Compound", duration: 295, timestamp: "2026-07-14 09:30", status: "Success" },
-          { id: "REQ-2007", customerId: "CUST-007", customerName: "Peter Parker", customerEmail: "peter.p@dailybugle.com", company: "Home hardware", dealer: "Home hardware Toronto 01", type: "AI Diagnosis Scan", payload: "Scanned loose vinyl siding seam", aiResponse: "Siding Lock Tool + Vinyl Siding Nails SKU-8321 matched", duration: 190, timestamp: "2026-07-15 14:20", status: "Success" },
-          { id: "REQ-2008", customerId: "CUST-008", customerName: "Tony Stark", customerEmail: "tony@starkindustries.com", company: "My Depot", dealer: "My Depot Montreal 01", type: "AI Product Match", payload: "Query: high heat resistant copper solder alloy", aiResponse: "Harris Stay-Silv 15% Silver Solder SKU-3948", duration: 95, timestamp: "2026-07-15 10:10", status: "Success" },
-          { id: "REQ-2009", customerId: "CUST-009", customerName: "Steve Rogers", customerEmail: "cap@avengers.org", company: "Rona", dealer: "Rona Boucherville 01", type: "AI Diagnosis Scan", payload: "Scanned cracked wooden shield varnish", aiResponse: "Premium Spar Urethane Satin Finish matched", duration: 380, timestamp: "2026-07-15 17:05", status: "Success" },
-          { id: "REQ-2010", customerId: "CUST-010", customerName: "Natasha Romanoff", customerEmail: "nat@shield.gov", company: "BMR Group", dealer: "BMR Group Montreal 02", type: "AI Support Ticket", payload: "Inquiry: Can I return unused paint cans after 30 days?", aiResponse: "Auto-answered: Return policy allows 90 days on unopened cans", duration: 140, timestamp: "2026-07-15 16:40", status: "Success" },
-          { id: "REQ-2011", customerId: "CUST-011", customerName: "Bruce Banner", customerEmail: "hulk@starklabs.com", company: "Tottens", dealer: "Tottens Winnipeg 01", type: "AI Diagnosis Scan", payload: "Scanned shattered concrete driveway slab", aiResponse: "Quikrete High-Strength Concrete Mix matched", duration: 460, timestamp: "2026-07-15 15:55", status: "Success" },
-          { id: "REQ-2012", customerId: "CUST-012", customerName: "Thor Odinson", customerEmail: "thor@asgard.gov", company: "Home hardware", dealer: "Home hardware Toronto 02", type: "AI Product Match", payload: "Query: heavy duty hammer handle replacement wood", aiResponse: "Genuine Hickory Replacement Handle SKU-5092", duration: 115, timestamp: "2026-07-15 14:15", status: "Success" },
-          { id: "REQ-2013", customerId: "CUST-013", customerName: "Barry Allen", customerEmail: "barry.a@ccpd.gov", company: "My Depot", dealer: "My Depot Montreal 01", type: "AI Material Estimate", payload: "Estimate self-leveling underlayment for 500 sq ft floor", aiResponse: "Requires 14 bags Level-Quick Self-Leveling compound", duration: 330, timestamp: "2026-07-15 11:30", status: "Success" },
-          { id: "REQ-2014", customerId: "CUST-014", customerName: "Hal Jordan", customerEmail: "greenlantern@ferriaerospace.com", company: "Rona", dealer: "Rona Boucherville 01", type: "AI Diagnosis Scan", payload: "Scanned scratched aircraft fiberglass panel", aiResponse: "Bondo Glass Reinforced Filler SKU-7301 matched", duration: 280, timestamp: "2026-07-15 16:50", status: "Success" },
-          { id: "REQ-2015", customerId: "CUST-015", customerName: "Arthur Curry", customerEmail: "aquaman@atlantis.org", company: "Tottens", dealer: "Tottens Winnipeg 01", type: "AI Support Ticket", payload: "Inquiry: Do you stock marine grade stainless steel bolts?", aiResponse: "Auto-answered: Yes, A4 Marine Grade bolts are in aisle 7", duration: 155, timestamp: "2026-07-15 17:02", status: "Success" }
+          { id: "REQ-2001", customerId: "CUST-001", customerName: "David Beckham", customerEmail: "david.beck@gmail.com", company: "Home hardware", dealer: "Home hardware 01", type: "AI Diagnosis Scan", payload: "Scanned cracked oak dining table surface", aiResponse: "FlexResin Wood Filler + Walnut Stain matched", duration: 240, timestamp: "2026-07-15 15:30", status: "Success" },
+          { id: "REQ-2002", customerId: "CUST-002", customerName: "Emma Watson", customerEmail: "emma@yahoo.com", company: "Home hardware", dealer: "Home hardware 02", type: "AI Product Match", payload: "Waterproofing sealant for concrete planter", aiResponse: "Aquashield Premium Epoxy matched", duration: 185, timestamp: "2026-07-15 17:10", status: "Success" },
+          { id: "REQ-2005", customerId: "CUST-005", customerName: "Clark Kent", customerEmail: "clark@dailyplanet.com", company: "BMR Group", dealer: "BMR Group 02", type: "AI Product Match", payload: "Dry outdoor rust-resistant metal spray paint", aiResponse: "RustOleum Stops Rust Gloss Black SKU-2847", duration: 120, timestamp: "2026-07-15 11:00", status: "Success" },
+          { id: "REQ-2007", customerId: "CUST-007", customerName: "Peter Parker", customerEmail: "peter.p@dailybugle.com", company: "Home hardware", dealer: "Home hardware 01", type: "AI Diagnosis Scan", payload: "Scanned loose vinyl siding seam", aiResponse: "Siding Lock Tool + Vinyl Siding Nails SKU-8321 matched", duration: 190, timestamp: "2026-07-15 14:20", status: "Success" },
+          { id: "REQ-2010", customerId: "CUST-010", customerName: "Natasha Romanoff", customerEmail: "nat@shield.gov", company: "BMR Group", dealer: "BMR Group 02", type: "AI Support Ticket", payload: "Inquiry: Can I return unused paint cans after 30 days?", aiResponse: "Auto-answered: Return policy allows 90 days on unopened cans", duration: 140, timestamp: "2026-07-15 16:40", status: "Success" },
+          { id: "REQ-2012", customerId: "CUST-012", customerName: "Thor Odinson", customerEmail: "thor@asgard.gov", company: "Home hardware", dealer: "Home hardware 02", type: "AI Product Match", payload: "Query: heavy duty hammer handle replacement wood", aiResponse: "Genuine Hickory Replacement Handle SKU-5092", duration: 115, timestamp: "2026-07-15 14:15", status: "Success" }
         ];
       }
 
       if (!this.state.db.aiConfig) {
         this.state.db.aiConfig = {
-          model: "BotNBolt-Pro-v3.0",
+          model: "OpenAI GPT-4 Vision",
           temperature: 0.7,
           maxTokens: 2048,
           systemPrompt: "You are the BotNBolt Diagnostic AI Assistant. Analyze uploaded terminal scans and recommend precise restoration materials and standard retail SKUs available at the store location.",
           companyToggles: {
             "Home hardware": { autoDiagnosis: true, estimator: true, autoReply: false, prompt: "" },
-            "My Depot": { autoDiagnosis: true, estimator: false, autoReply: true, prompt: "" },
-            "Rona": { autoDiagnosis: true, estimator: true, autoReply: true, prompt: "" },
-            "BMR Group": { autoDiagnosis: false, estimator: true, autoReply: false, prompt: "" },
-            "Tottens": { autoDiagnosis: true, estimator: true, autoReply: false, prompt: "" }
+            "BMR Group": { autoDiagnosis: false, estimator: true, autoReply: false, prompt: "" }
           },
           dealerToggles: {
             "Home hardware 01": { staffAssistant: true, autofillMaterials: true, alerts: true },
@@ -223,19 +237,20 @@
       if (!bar) return;
 
       const categories = [
+        { id: 'all', name: 'All', icon: 'layout-grid' },
         { id: 'repair_analyse', name: 'Repair and Analyse', icon: 'cpu' },
         { id: 'build', name: 'Build', icon: 'hammer' },
         { id: 'renovation', name: 'Renovation', icon: 'home' }
       ];
 
-      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
+      const activeCat = this.state.selectedCategory || 'All';
 
       bar.innerHTML = categories.map(cat => {
         const isActive = cat.name === activeCat;
         return `
           <div class="category-item ${isActive ? 'active' : ''}" onclick="window.BotNBoltApp.selectCategory('${cat.name}')">
             <div class="category-icon-wrapper">
-              <i data-lucide="${cat.icon}" style="width: 20px; height: 20px;"></i>
+              <i data-lucide="${cat.icon}" style="width: 16px; height: 16px;"></i>
             </div>
             <span class="category-label">${cat.name}</span>
           </div>
@@ -273,7 +288,7 @@
 
     renderUsersView(canvas) {
       const role = this.state.activeRole;
-      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
+      const activeCat = this.state.selectedCategory || 'All';
       
       let titleScope = "";
       let requests = this.state.db.userRequests || [];
@@ -281,7 +296,7 @@
       // Filter requests by role scope and category
       if (role === 'superAdmin') {
         titleScope = "System-Wide Customer AI Inquiries";
-        requests = requests.filter(r => this.getCompanyCategory(r.company) === activeCat);
+        requests = requests.filter(r => activeCat === 'All' || this.getCompanyCategory(r.company) === activeCat);
       } else if (role === 'companyAdmin') {
         const companyName = this.getFilteredCompanyAdmin().companyName;
         titleScope = `${companyName} Brand Customer Activity`;
@@ -604,7 +619,7 @@
                 <div style="margin-bottom:16px; background: rgba(37, 99, 235, 0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(37, 99, 235, 0.15); display: flex; align-items: center; justify-content: space-between;">
                   <div>
                     <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:2px;">Active AI Engine</div>
-                    <strong style="font-size:0.9rem; color:var(--text-primary);">BotNBolt AI Core Engine</strong>
+                    <strong style="font-size:0.9rem; color:var(--text-primary);">OpenAI GPT-4 Vision (via FastAPI AI Service)</strong>
                   </div>
                   <span style="font-size:0.7rem; background:var(--success); color:#fff; padding:2px 8px; border-radius:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Active & Online</span>
                 </div>
@@ -665,7 +680,7 @@
                 </div>
 
                 <div style="margin-bottom:16px;">
-                  <label class="form-label" style="font-weight:600; font-size:0.8rem; margin-bottom:6px; display:block;">Company Custom Instructions</label>
+                  <label class="form-label" style="font-weight:600; font-size:0.8rem; margin-bottom:6px; display:block;">Tenant Custom Instructions</label>
                   <textarea class="form-control" id="companyPrompt" rows="3" placeholder="Append brand specific guidelines (e.g. prioritize HH house brand resins)..." style="font-size:0.8rem; line-height:1.4; resize:none;" oninput="window.BotNBoltApp.updateCompanyToggle('prompt', this.value)">${config.companyToggles["Home hardware"].prompt || ''}</textarea>
                 </div>
               ` : ''}
@@ -842,9 +857,10 @@
     }
 
     getSuperAdminKpis() {
-      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
-      const companies = this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
-      const dealers = this.state.db.superAdmin.dealers.filter(d => this.getCompanyCategory(d.company) === activeCat);
+      const activeCat = this.state.selectedCategory || 'All';
+      const isAll = activeCat === 'All';
+      const companies = isAll ? this.state.db.superAdmin.companies : this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      const dealers = isAll ? this.state.db.superAdmin.dealers : this.state.db.superAdmin.dealers.filter(d => this.getCompanyCategory(d.company) === activeCat);
       
       const totalCompanies = companies.length;
       const totalDealers = dealers.length;
@@ -875,11 +891,12 @@
     }
 
     getFilteredSuperAdmin() {
-      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
+      const activeCat = this.state.selectedCategory || 'All';
       const rawDb = this.state.db.superAdmin;
+      const isAll = activeCat === 'All';
       
-      const companies = rawDb.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
-      const dealers = rawDb.dealers.filter(d => this.getCompanyCategory(d.company) === activeCat);
+      const companies = isAll ? rawDb.companies : rawDb.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      const dealers = isAll ? rawDb.dealers : rawDb.dealers.filter(d => this.getCompanyCategory(d.company) === activeCat);
       
       const logs = rawDb.logs.filter(l => {
         const relatedCompany = companies.some(c => l.user.includes(c.name) || l.action.includes(c.name));
@@ -906,8 +923,9 @@
     }
 
     getFilteredCompanyAdmin() {
-      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
-      const companies = this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      const activeCat = this.state.selectedCategory || 'All';
+      const isAll = activeCat === 'All';
+      const companies = isAll ? this.state.db.superAdmin.companies : this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
       
       let activeCompany = companies[0] ? companies[0].name : 'Home hardware';
       if (this.state.db.companyAdmin && companies.some(c => c.name === this.state.db.companyAdmin.companyName)) {
@@ -931,6 +949,8 @@
           customerSatisfaction: { value: "4.6 / 5.0", change: "+0.2 rating", trend: "up" }
         },
         supportTickets: this.state.db.supportAdmin.tickets.filter(t => t.company === activeCompany),
+        repairAnalytics: (this.state.db.companyAdmin && this.state.db.companyAdmin.repairAnalytics) || (window.BotNBoltMockData && window.BotNBoltMockData.companyAdmin && window.BotNBoltMockData.companyAdmin.repairAnalytics) || [],
+        customerInsights: (this.state.db.companyAdmin && this.state.db.companyAdmin.customerInsights) || (window.BotNBoltMockData && window.BotNBoltMockData.companyAdmin && window.BotNBoltMockData.companyAdmin.customerInsights) || { mostCommonProblems: [], faqs: [], mostPurchasedMaterials: [], repeatPercentage: "0%", provinceUsage: [] },
         materials: [
           { name: "FlexResin Epoxy (Industrial)", sku: "FR-EPOXY-400ML", inventory: "In Stock", suggestions: 412, dealersAvailable: 12, conversionRate: 74.2 },
           { name: "ClearSpray Acrylic (High Gloss)", sku: "CS-GLOSS-500ML", inventory: "Low Stock", suggestions: 320, dealersAvailable: 9, conversionRate: 68.5 },
@@ -946,8 +966,9 @@
     }
 
     getFilteredDealer() {
-      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
-      const companies = this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      const activeCat = this.state.selectedCategory || 'All';
+      const isAll = activeCat === 'All';
+      const companies = isAll ? this.state.db.superAdmin.companies : this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
       const activeCompany = companies[0] ? companies[0].name : 'Home hardware';
       
       const dealers = this.state.db.superAdmin.dealers.filter(d => d.company === activeCompany);
@@ -991,17 +1012,18 @@
     }
 
     getFilteredSupportAdmin() {
-      const activeCat = this.state.selectedCategory || 'Repair and Analyse';
+      const activeCat = this.state.selectedCategory || 'All';
       const rawDb = this.state.db.supportAdmin;
       const superDb = this.state.db.superAdmin;
+      const isAll = activeCat === 'All';
       
-      const companies = superDb.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
-      const dealers = superDb.dealers.filter(d => this.getCompanyCategory(d.company) === activeCat);
+      const companies = isAll ? superDb.companies : superDb.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      const dealers = isAll ? superDb.dealers : superDb.dealers.filter(d => this.getCompanyCategory(d.company) === activeCat);
       
-      const tickets = rawDb.tickets.filter(t => this.getCompanyCategory(t.company) === activeCat);
-      const companySupportOverview = rawDb.companySupportOverview.filter(c => this.getCompanyCategory(c.companyName) === activeCat);
-      const aiErrorReports = rawDb.aiErrorReports.filter(e => this.getCompanyCategory(e.reportedBy) === activeCat || dealers.some(d => d.name === e.reportedBy));
-      const dealerSupport = rawDb.dealerSupport.filter(d => this.getCompanyCategory(d.dealerName) === activeCat || dealers.some(dl => dl.name === d.dealerName));
+      const tickets = isAll ? rawDb.tickets : rawDb.tickets.filter(t => this.getCompanyCategory(t.company) === activeCat);
+      const companySupportOverview = isAll ? rawDb.companySupportOverview : rawDb.companySupportOverview.filter(c => this.getCompanyCategory(c.companyName) === activeCat);
+      const aiErrorReports = isAll ? rawDb.aiErrorReports : rawDb.aiErrorReports.filter(e => this.getCompanyCategory(e.reportedBy) === activeCat || dealers.some(d => d.name === e.reportedBy));
+      const dealerSupport = isAll ? rawDb.dealerSupport : rawDb.dealerSupport.filter(d => this.getCompanyCategory(d.dealerName) === activeCat || dealers.some(dl => dl.name === d.dealerName));
       
       return {
         ...rawDb,
@@ -1067,13 +1089,13 @@
 
       let items = [];
       if (this.state.activeRole === 'superAdmin') {
-        items = ['overview', 'companies', 'dealers', 'users', 'settings', 'ai_analytics', 'billing', 'revenue', 'ai_cost', 'model_performance', 'infrastructure', 'system_errors', 'tickets', 'permissions'];
+        items = ['overview', 'aws_billing', 'companies', 'dealers', 'users', 'ai_cost', 'model_performance', 'infrastructure', 'system_errors', 'tickets', 'permissions'];
       } else if (this.state.activeRole === 'companyAdmin') {
-        items = ['overview', 'dealers', 'repair_analytics', 'insights', 'materials', 'users', 'settings', 'tickets'];
+        items = ['overview', 'dealers', 'repair_analytics', 'insights', 'billing', 'materials', 'users', 'tickets'];
       } else if (this.state.activeRole === 'dealer') {
-        items = ['overview', 'requests', 'materials', 'leads', 'users', 'settings', 'tickets', 'profile'];
+        items = ['overview', 'requests', 'materials', 'leads', 'users', 'tickets', 'profile'];
       } else if (this.state.activeRole === 'supportAdmin') {
-        items = ['overview', 'tickets', 'companies', 'dealers', 'users', 'settings', 'ai_errors', 'monitoring'];
+        items = ['overview', 'tickets', 'companies', 'dealers', 'users', 'ai_errors', 'monitoring'];
       }
 
       items.forEach(item => {
@@ -1134,8 +1156,12 @@
       // Clean up previous charts
       this.destroyCharts();
 
-      // Render global category selector
-      this.renderCategorySelectionBar();
+      // Render global category selector on all pages
+      const catBar = document.getElementById('categorySelectionBar');
+      if (catBar) {
+        catBar.style.display = 'flex';
+        this.renderCategorySelectionBar();
+      }
 
       const canvas = document.getElementById('contentCanvas');
       const role = this.state.activeRole;
@@ -1167,6 +1193,26 @@
         document.getElementById('pageTitle').innerText = `AI Settings & Billing (${roleProfiles[role].label})`;
         document.getElementById('pageSubtitle').innerText = `AI model configuration panel, usage reports, and billing metrics`;
         this.renderSettingsView(canvas);
+        lucide.createIcons();
+        return;
+      }
+
+      if (menu === 'aws_billing') {
+        document.getElementById('pageTitle').innerText = `Tenant AWS Usage & Billing`;
+        document.getElementById('pageSubtitle').innerText = `Monitor tenant AWS usage, infrastructure costs, cost allocation, billing insights, and profitability across all enterprise customers.`;
+        this.renderTenantAwsUsageBillingView(canvas);
+        lucide.createIcons();
+        return;
+      }
+
+      if (menu === 'billing') {
+        document.getElementById('pageTitle').innerText = `Billing & Subscriptions (${roleProfiles[role].label})`;
+        document.getElementById('pageSubtitle').innerText = `Subscription plan details, billing statements, and monthly invoice breakdown`;
+        if (role === 'companyAdmin') {
+          this.renderTenantAdminBillingView(canvas);
+        } else {
+          this.renderBillingView(canvas);
+        }
         lucide.createIcons();
         return;
       }
@@ -1447,6 +1493,11 @@
     renderSuperAdminView(canvas, menu) {
       const db = this.getFilteredSuperAdmin();
 
+      if (menu === 'aws_billing') {
+        this.renderTenantAwsUsageBillingView(canvas);
+        return;
+      }
+
       if (menu === 'overview') {
         canvas.innerHTML = `
           <!-- Full-Width 10 KPI Cards Grid Row at the Top -->
@@ -1455,7 +1506,7 @@
             <!-- Active Companies → navigate to companies -->
             <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.navigate('companies')" style="padding: 16px; border-left: 4px solid var(--primary); display:flex; justify-content:space-between; align-items:center; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(37, 99, 235, 0.05) 100%); cursor:pointer; transition: transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 24px rgba(37,99,235,0.15)'" onmouseleave="this.style.transform=''; this.style.boxShadow=''">
               <div>
-                <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Active Companies</div>
+                <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Active Tenants</div>
                 <strong style="font-size:1.4rem; color:var(--text-primary); font-family:var(--font-family);">${db.kpis.totalCompanies.value}</strong>
               </div>
               <div style="display:flex; flex-direction:column; align-items:flex-end;">
@@ -1639,7 +1690,7 @@
               <!-- Circular Progress 2: Company Health Status -->
               <div class="card" style="text-align:center; padding:20px;">
                 <div class="card-header" style="justify-content:center; padding:0 0 12px 0; border-bottom:1px solid var(--border-color); margin-bottom:16px;">
-                  <span class="card-title">Company Health Status</span>
+                  <span class="card-title">Tenant Health Status</span>
                 </div>
                 <div style="position:relative; width:130px; height:130px; margin:16px auto;">
                   <svg width="130" height="130" viewBox="0 0 120 120">
@@ -1652,7 +1703,7 @@
                     <div style="font-size:0.65rem; color:var(--text-secondary);">Active</div>
                   </div>
                 </div>
-                <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:12px;">5 active companies / 34 active dealer outlets running healthy. 2 offline.</p>
+                <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:12px;">5 active tenants / 34 active dealer outlets running healthy. 2 offline.</p>
               </div>
 
               <!-- Doughnut Chart: Categories Distribution -->
@@ -1883,7 +1934,7 @@
           <!-- Companies Analytics Header -->
           <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-bottom:24px;">
             <div class="card" style="padding:20px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.07) 100%);">
-              <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:6px;">Total Companies</div>
+              <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:6px;">Total Tenants</div>
               <strong style="font-size:1.8rem; color:var(--text-primary);">${db.companies.length}</strong>
               <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">Registered in platform</div>
             </div>
@@ -1934,9 +1985,9 @@
           <!-- Companies Listing Table -->
           <div class="card">
             <div class="card-header">
-              <span class="card-title">Registered Companies</span>
+              <span class="card-title">Registered Tenants</span>
               <button class="btn btn-primary btn-sm flex-center" onclick="window.BotNBoltApp.openAddCompanyModal()">
-                <i data-lucide="plus-circle"></i> Add Company
+                <i data-lucide="plus-circle"></i> Add Tenant
               </button>
             </div>
             
@@ -1945,7 +1996,7 @@
               <div class="table-actions-left" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
                 <div class="search-wrapper">
                   <i data-lucide="search"></i>
-                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search companies..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
+                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search tenants..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
                 </div>
 
                 <!-- Industry Filter -->
@@ -1996,7 +2047,7 @@
                     <th style="width: 40px; padding-left: 24px;">
                       <input type="checkbox" id="chk-all-${tableKey}" style="width:16px; height:16px; cursor:pointer;" ${checked.length === allRowIds.length && allRowIds.length > 0 ? 'checked' : ''} onchange="window.BotNBoltApp.handleSelectAllChange('${tableKey}', this.checked, ${JSON.stringify(allRowIds).replace(/"/g, '&quot;')})">
                     </th>
-                    <th>Company Name</th>
+                    <th>Tenant Name</th>
                     <th>ID</th>
                     <th>Industry</th>
                     <th>Plan</th>
@@ -2040,8 +2091,8 @@
                       <td><span class="badge ${co.status === 'Active' ? 'badge-success' : co.status === 'Suspended' ? 'badge-danger' : 'badge-warning'}">${co.status}</span></td>
                       <td>
                         <div class="table-actions">
-                          <button class="action-icon-btn" onclick="window.BotNBoltApp.editCompany('${co.id}')" title="Edit Company Details"><i data-lucide="edit-3"></i></button>
-                          <button class="action-icon-btn" onclick="window.BotNBoltApp.toggleCompanyStatus('${co.id}')" title="${co.status === 'Active' ? 'Suspend' : 'Activate'} Company"><i data-lucide="${co.status === 'Active' ? 'slash' : 'play'}"></i></button>
+                          <button class="action-icon-btn" onclick="window.BotNBoltApp.editCompany('${co.id}')" title="Edit Tenant Details"><i data-lucide="edit-3"></i></button>
+                          <button class="action-icon-btn" onclick="window.BotNBoltApp.toggleCompanyStatus('${co.id}')" title="${co.status === 'Active' ? 'Suspend' : 'Activate'} Tenant"><i data-lucide="${co.status === 'Active' ? 'slash' : 'play'}"></i></button>
                           <button class="action-icon-btn" onclick="window.BotNBoltApp.manageSubscriptionModal('${co.id}')" title="Manage subscription & limits"><i data-lucide="sliders"></i></button>
                           <button class="action-icon-btn" onclick="window.BotNBoltApp.resetCompanyPassword('${co.id}')" title="Reset Admin Password"><i data-lucide="key-round"></i></button>
                           <button class="action-icon-btn" onclick="window.BotNBoltApp.navigateToCompany('${co.id}')" title="View Dealers"><i data-lucide="users-2"></i></button>
@@ -2210,12 +2261,9 @@
 
                 <!-- Company Filter -->
                 <select class="form-control dropdown-filter" style="width: 140px; font-size: 0.85rem; padding: 4px 8px; height: 32px;" onchange="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'company', this.value)">
-                  <option value="">All Companies</option>
+                  <option value="">All Tenants</option>
                   <option value="Home hardware" ${filterCompany === 'Home hardware' ? 'selected' : ''}>Home hardware</option>
-                  <option value="My Depot" ${filterCompany === 'My Depot' ? 'selected' : ''}>My Depot</option>
-                  <option value="Rona" ${filterCompany === 'Rona' ? 'selected' : ''}>Rona</option>
                   <option value="BMR Group" ${filterCompany === 'BMR Group' ? 'selected' : ''}>BMR Group</option>
-                  <option value="Tottens" ${filterCompany === 'Tottens' ? 'selected' : ''}>Tottens</option>
                 </select>
 
                 <!-- City Filter -->
@@ -2272,7 +2320,7 @@
                       <input type="checkbox" id="chk-all-${tableKey}" style="width:16px; height:16px; cursor:pointer;" ${checked.length === allRowIds.length && allRowIds.length > 0 ? 'checked' : ''} onchange="window.BotNBoltApp.handleSelectAllChange('${tableKey}', this.checked, ${JSON.stringify(allRowIds).replace(/"/g, '&quot;')})">
                     </th>
                     <th>Dealer Name</th>
-                    <th>Company</th>
+                    <th>Tenant</th>
                     <th>City</th>
                     <th>Province</th>
                     <th>Manager</th>
@@ -2527,104 +2575,7 @@
         }
 
       } else if (menu === 'billing') {
-        const now = new Date();
-        const expiring = db.companies.filter(co => {
-          const d = new Date(co.expiryDate);
-          const diff = (d - now) / (1000 * 60 * 60 * 24);
-          return diff < 60 && diff > 0;
-        });
-        const totalMonthlyRevenue = db.companies.reduce((s, co) => {
-          const planMap = { 'Enterprise Gold': 1499, 'Enterprise Platinum': 1899, 'Premium Standard': 899 };
-          return s + (planMap[co.subscriptionPlan] || 499);
-        }, 0);
-
-        canvas.innerHTML = `
-          <!-- Billing KPI Header -->
-          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-bottom:24px;">
-            <div class="card" style="padding:20px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.07) 100%);">
-              <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:6px;">Monthly Revenue</div>
-              <strong style="font-size:1.8rem; color:var(--success);">$${totalMonthlyRevenue.toLocaleString()}</strong>
-              <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">Across all subscriptions</div>
-            </div>
-            <div class="card" style="padding:20px; border-left:4px solid #3b82f6; background:linear-gradient(135deg,var(--bg-card) 0%,rgba(59,130,246,0.07) 100%);">
-              <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:6px;">Active Subscriptions</div>
-              <strong style="font-size:1.8rem; color:#3b82f6;">${db.companies.filter(c => c.status === 'Active').length}</strong>
-              <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">Fully paid companies</div>
-            </div>
-            <div class="card" style="padding:20px; border-left:4px solid #f59e0b; background:linear-gradient(135deg,var(--bg-card) 0%,rgba(245,158,11,0.07) 100%);">
-              <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:6px;">Expiring &lt; 60 Days</div>
-              <strong style="font-size:1.8rem; color:#f59e0b;">${expiring.length}</strong>
-              <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">Require renewal action</div>
-            </div>
-          </div>
-
-          <!-- Expiry Alert Banner -->
-          ${expiring.length > 0 ? `
-          <div style="background:linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.06)); border:1px solid rgba(245,158,11,0.35); border-radius:12px; padding:16px 20px; margin-bottom:24px; display:flex; align-items:center; gap:14px;">
-            <i data-lucide="alert-triangle" style="color:#f59e0b; width:22px; height:22px; flex-shrink:0;"></i>
-            <div>
-              <strong style="color:#f59e0b; font-size:0.9rem;">⚠ ${expiring.length} subscription${expiring.length > 1 ? 's' : ''} expiring within 60 days</strong>
-              <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:3px;">${expiring.map(c => `${c.name} (${c.expiryDate})`).join(' · ')}</div>
-            </div>
-          </div>
-          ` : ''}
-
-          <!-- Subscription Plan Summary Cards -->
-          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px;">
-            ${[
-            { plan: 'Enterprise Platinum', price: '$1,899', color: '#a855f7' },
-            { plan: 'Enterprise Gold', price: '$1,499', color: '#f59e0b' },
-            { plan: 'Premium Standard', price: '$899', color: '#3b82f6' }
-          ].map(p => {
-            const count = db.companies.filter(c => c.subscriptionPlan === p.plan).length;
-            return `
-                <div class="card" style="padding:16px; text-align:center; border-top:3px solid ${p.color};">
-                  <div style="font-size:1.5rem; font-weight:800; color:${p.color};">${count}</div>
-                  <div style="font-size:0.72rem; font-weight:700; color:var(--text-primary); margin:4px 0;">${p.plan}</div>
-                  <div style="font-size:0.75rem; color:var(--text-secondary);">${p.price}/mo</div>
-                </div>
-              `;
-          }).join('')}
-          </div>
-
-          <div class="card">
-            <div class="card-header"><span class="card-title">Subscription Billing Details</span>
-              <button class="btn btn-secondary btn-sm flex-center" onclick="alert('Exporting billing CSV...')"><i data-lucide="download"></i> Export CSV</button>
-            </div>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Company Name</th>
-                    <th>Plan Type</th>
-                    <th>Monthly/Yearly</th>
-                    <th>API Credits</th>
-                    <th>Extra Usage Charges</th>
-                    <th>Invoice History</th>
-                    <th>Payment Status</th>
-                    <th>Renewal Date</th>
-                    <th>GST/VAT Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${db.companies.map(co => `
-                    <tr>
-                      <td><strong>${co.name}</strong></td>
-                      <td><span class="badge badge-info">${co.subscriptionPlan}</span></td>
-                      <td>Monthly</td>
-                      <td><strong>${co.apiLimit - 450}</strong> / ${co.apiLimit} units</td>
-                      <td><span style="color:var(--danger); font-weight:600;">$12.50</span></td>
-                      <td><button class="btn btn-secondary btn-sm flex-center" onclick="alert('Downloading invoice PDF for ${co.name}...')"><i data-lucide="download" style="width:12px; height:12px;"></i> PDF</button></td>
-                      <td><span class="badge badge-success">Paid</span></td>
-                      <td>${co.expiryDate}</td>
-                      <td><code>GST-890124-CA</code></td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        `;
+        this.renderBillingView(canvas);
       } else if (menu === 'tickets') {
         const tableKey = 'tickets_sa';
         const ticketsList = this.state.db.supportAdmin.tickets;
@@ -2699,12 +2650,9 @@
 
                 <!-- Company Filter -->
                 <select class="form-control dropdown-filter" style="width: 140px; font-size: 0.85rem; padding: 4px 8px; height: 32px;" onchange="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'company', this.value)">
-                  <option value="">All Companies</option>
+                  <option value="">All Tenants</option>
                   <option value="Home hardware" ${filterCompany === 'Home hardware' ? 'selected' : ''}>Home hardware</option>
-                  <option value="My Depot" ${filterCompany === 'My Depot' ? 'selected' : ''}>My Depot</option>
-                  <option value="Rona" ${filterCompany === 'Rona' ? 'selected' : ''}>Rona</option>
                   <option value="BMR Group" ${filterCompany === 'BMR Group' ? 'selected' : ''}>BMR Group</option>
-                  <option value="Tottens" ${filterCompany === 'Tottens' ? 'selected' : ''}>Tottens</option>
                 </select>
 
                 <!-- City Filter -->
@@ -2757,7 +2705,7 @@
                     </th>
                     <th>Ticket ID</th>
                     <th>Customer Name</th>
-                    <th>Company</th>
+                    <th>Tenant</th>
                     <th>Dealer</th>
                     <th>Category</th>
                     <th>Priority</th>
@@ -3000,14 +2948,14 @@
         if (!this.state.db.superAdmin.systemErrors) {
           this.state.db.superAdmin.systemErrors = [
             { id: 'ERR-701', time: 'Today 03:42 PM', dealer: 'Home hardware 01 - Toronto', type: 'AI Inference Timeout', message: 'Image analysis API exceeded 30s threshold. Model returned null.', severity: 'High', status: 'Open', count: 3, trace: 'Traceback (most recent call last):\n  File "/app/ai/inference.py", line 42, in process_image\n    res = client.predict(image_bytes, timeout=30.0)\n  File "/usr/local/lib/python3.10/site-packages/grpc/_channel.py", line 986, in __call__\n    raise grpc.RpcError("Deadline Exceeded")\ngrpc.RpcError: Deadline Exceeded (30.0s limit reached)' },
-            { id: 'ERR-702', time: 'Today 02:18 PM', dealer: 'My Depot 02 - Montreal', type: 'Authentication Failure', message: 'JWT token expired mid-session. Auto-refresh failed due to expired refresh token.', severity: 'Medium', status: 'Auto-Resolved', count: 1, trace: 'Error: Unauthorized\n    at verifyToken (/app/auth/jwt.js:18:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async authMiddleware (/app/routes/api.js:45:5)' },
-            { id: 'ERR-703', time: 'Today 01:55 PM', dealer: 'Tottens 08 - Vancouver', type: 'Image Upload Error', message: 'S3 multipart upload failed — file exceeded 15MB limit. User not notified.', severity: 'Medium', status: 'Open', count: 2, trace: 'AWS.S3.UploadError: EntityTooLarge (Your proposed upload exceeds the maximum allowed size)\n    at Request.extractError (/app/node_modules/aws-sdk/lib/services/s3.js:711:28)\n    at Request.callListeners (/app/node_modules/aws-sdk/lib/sequential_executor.js:106:20)' },
-            { id: 'ERR-704', time: 'Today 12:30 PM', dealer: 'Rona 03 - Calgary', type: 'API Rate Limit Hit', message: 'Company exceeded 500 requests/hour. Requests queued for 12 minutes.', severity: 'High', status: 'Resolved', count: 1, trace: 'RateLimitExceeded: IP 192.168.1.45 hit hard ceiling of 500 requests/hr.\n    at RateLimiter.consume (/app/middleware/ratelimit.js:29:15)\n    at async handleRequest (/app/app.js:88:9)' },
+            { id: 'ERR-702', time: 'Today 02:18 PM', dealer: 'BMR Group 02 - Montreal', type: 'Authentication Failure', message: 'JWT token expired mid-session. Auto-refresh failed due to expired refresh token.', severity: 'Medium', status: 'Auto-Resolved', count: 1, trace: 'Error: Unauthorized\n    at verifyToken (/app/auth/jwt.js:18:12)\n    at processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async authMiddleware (/app/routes/api.js:45:5)' },
+            { id: 'ERR-703', time: 'Today 01:55 PM', dealer: 'Home hardware 08 - Vancouver', type: 'Image Upload Error', message: 'S3 multipart upload failed — file exceeded 15MB limit. User not notified.', severity: 'Medium', status: 'Open', count: 2, trace: 'AWS.S3.UploadError: EntityTooLarge (Your proposed upload exceeds the maximum allowed size)\n    at Request.extractError (/app/node_modules/aws-sdk/lib/services/s3.js:711:28)\n    at Request.callListeners (/app/node_modules/aws-sdk/lib/sequential_executor.js:106:20)' },
+            { id: 'ERR-704', time: 'Today 12:30 PM', dealer: 'BMR Group 01 - Toronto', type: 'API Rate Limit Hit', message: 'Company exceeded 500 requests/hour. Requests queued for 12 minutes.', severity: 'High', status: 'Resolved', count: 1, trace: 'RateLimitExceeded: IP 192.168.1.45 hit hard ceiling of 500 requests/hr.\n    at RateLimiter.consume (/app/middleware/ratelimit.js:29:15)\n    at async handleRequest (/app/app.js:88:9)' },
             { id: 'ERR-705', time: 'Today 11:10 AM', dealer: 'BMR Group 04 - Edmonton', type: 'Widget Load Failure', message: 'Widget script failed to initialise — missing CORS header on company domain.', severity: 'Low', status: 'Resolved', count: 4, trace: 'Access to script at "https://cdn.botnbolt.com/widget.js" from origin "https://bmrgroup-edmonton.ca" has been blocked by CORS policy: No "Access-Control-Allow-Origin" header is present on the requested resource.' },
             { id: 'ERR-706', time: 'Today 09:45 AM', dealer: 'Home hardware 05 - Ottawa', type: 'Database Failover', message: 'RDS read-replica experienced brief failover. Queries queued for 8 seconds.', severity: 'High', status: 'Resolved', count: 1, trace: 'KnexTimeoutError: Knex: Timeout acquiring a connection. The pool is probably full.\n    at ConnectionPool.acquire (/app/node_modules/knex/lib/client.js:321:12)' },
-            { id: 'ERR-707', time: 'Today 08:22 AM', dealer: 'Tottens 05 - Ottawa', type: 'AI Low Confidence', message: 'Damage detection returned <60% confidence on 2 consecutive images. Flagged.', severity: 'Low', status: 'Open', count: 2, trace: 'ConfidenceScoreWarning: Classification returned confidence 0.582 (threshold 0.60)\n    at Pipeline.classify (/app/ai/classifier.js:114:9)\n    at async runInference (/app/routes/scan.js:32:21)' },
-            { id: 'ERR-708', time: 'Today 07:30 AM', dealer: 'My Depot 05 - Vancouver', type: 'Email Notification Fail', message: 'SMTP relay rejected outbound email for quote notification. Fallback SMS sent.', severity: 'Low', status: 'Auto-Resolved', count: 1, trace: 'SMTPError: 554 5.7.1 Service unavailable; Client host [x.x.x.x] blocked using Zen Spamhaus\n    at SMTPConnection._actionMail (/app/node_modules/nodemailer/lib/smtp-connection/index.js:788:28)' },
-            { id: 'ERR-709', time: 'Yesterday 11:58 PM', dealer: 'Rona 01 - Toronto', type: 'Billing Webhook Fail', message: 'Stripe webhook payload verification failed — payment delayed by 4 hours.', severity: 'High', status: 'Resolved', count: 1, trace: 'StripeSignatureVerificationError: No signatures found matching the expected signature for payload.\n    at Webhooks.verifySignature (/app/node_modules/stripe/lib/Webhooks.js:52:12)' },
+            { id: 'ERR-707', time: 'Today 08:22 AM', dealer: 'BMR Group 02 - Montreal', type: 'AI Low Confidence', message: 'Damage detection returned <60% confidence on 2 consecutive images. Flagged.', severity: 'Low', status: 'Open', count: 2, trace: 'ConfidenceScoreWarning: Classification returned confidence 0.582 (threshold 0.60)\n    at Pipeline.classify (/app/ai/classifier.js:114:9)\n    at async runInference (/app/routes/scan.js:32:21)' },
+            { id: 'ERR-708', time: 'Today 07:30 AM', dealer: 'Home hardware 05 - Ottawa', type: 'Email Notification Fail', message: 'SMTP relay rejected outbound email for quote notification. Fallback SMS sent.', severity: 'Low', status: 'Auto-Resolved', count: 1, trace: 'SMTPError: 554 5.7.1 Service unavailable; Client host [x.x.x.x] blocked using Zen Spamhaus\n    at SMTPConnection._actionMail (/app/node_modules/nodemailer/lib/smtp-connection/index.js:788:28)' },
+            { id: 'ERR-709', time: 'Yesterday 11:58 PM', dealer: 'Home hardware 01 - Toronto', type: 'Billing Webhook Fail', message: 'Stripe webhook payload verification failed — payment delayed by 4 hours.', severity: 'High', status: 'Resolved', count: 1, trace: 'StripeSignatureVerificationError: No signatures found matching the expected signature for payload.\n    at Webhooks.verifySignature (/app/node_modules/stripe/lib/Webhooks.js:52:12)' },
             { id: 'ERR-710', time: 'Yesterday 10:12 PM', dealer: 'Home hardware 08 - Vancouver', type: 'Session Crash', message: 'Frontend JS uncaught exception during cost calculation. Session terminated.', severity: 'Medium', status: 'Resolved', count: 2, trace: 'TypeError: Cannot read properties of undefined (reading "toFixed")\n    at calculateEstimate (https://dealer.botnbolt.com/js/dashboard.js:42:19)\n    at HTMLButtonElement.onclick (https://dealer.botnbolt.com/dashboard:1:1)' }
           ];
           this.saveState();
@@ -3192,7 +3140,7 @@
             <div class="table-responsive">
               <table class="data-table">
                 <thead><tr>
-                  <th>Company</th><th>Plan</th><th>Dealers</th><th>Monthly Fee</th>
+                  <th>Tenant</th><th>Plan</th><th>Dealers</th><th>Monthly Fee</th>
                   <th>API Usage Charges</th><th>Total MRR</th><th>Payment Status</th><th>Renewal</th>
                 </tr></thead>
                 <tbody>
@@ -3276,10 +3224,10 @@
                 <span class="card-title">Cost by BotNBolt AI Engine</span>
               </div>
               ${[
-            { model: 'BotNBolt Vision Engine (Image Damage Detection)', pct: 58, cost: Math.round(totalAICost * 0.58), color: '#06b6d4' },
-            { model: 'BotNBolt Reasoner (Repair Recommendation Logic)', pct: 24, cost: Math.round(totalAICost * 0.24), color: '#a855f7' },
-            { model: 'BotNBolt NaturalNLP (Widget Conversation Engine)', pct: 12, cost: Math.round(totalAICost * 0.12), color: '#f59e0b' },
-            { model: 'BotNBolt Fallback Engine (Safeguards & Moderation)', pct: 6, cost: Math.round(totalAICost * 0.06), color: '#3b82f6' }
+            { model: 'OpenAI GPT-4 Vision (Image Damage Detection)', pct: 58, cost: Math.round(totalAICost * 0.58), color: '#06b6d4' },
+            { model: 'OpenAI GPT-4o (Repair Recommendation Engine)', pct: 24, cost: Math.round(totalAICost * 0.24), color: '#a855f7' },
+            { model: 'Qdrant Vector Engine (Product Embedding Search)', pct: 12, cost: Math.round(totalAICost * 0.12), color: '#f59e0b' },
+            { model: 'Amazon Textract OCR (PDF Repair Manual Analysis)', pct: 6, cost: Math.round(totalAICost * 0.06), color: '#3b82f6' }
           ].map(m => `
                 <div style="margin-bottom:16px;">
                   <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
@@ -3304,10 +3252,10 @@
           <!-- AI Cost by Company + Optimisation Recommendations -->
           <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:24px; margin-bottom:24px;">
             <div class="card">
-              <div class="card-header"><span class="card-title">AI Cost Breakdown by Company</span></div>
+              <div class="card-header"><span class="card-title">AI Cost Breakdown by Tenant</span></div>
               <div class="table-responsive">
                 <table class="data-table">
-                  <thead><tr><th>Company</th><th>Inferences</th><th>AI Cost</th><th>Cost/Inference</th><th>% of Total</th></tr></thead>
+                  <thead><tr><th>Tenant</th><th>Inferences</th><th>AI Cost</th><th>Cost/Inference</th><th>% of Total</th></tr></thead>
                   <tbody>
                     ${aiCostRows.sort((a, b) => b.cost - a.cost).map(r => `
                       <tr>
@@ -3337,7 +3285,7 @@
             { icon: 'zap', title: 'Increase Cache TTL', desc: 'Extend response cache from 15min to 60min. Estimated saving: $320/mo', color: '#10b981' },
             { icon: 'image', title: 'Compress Input Images', desc: 'Auto-resize images to 1024px max before Vision API call. Saves ~12% cost.', color: '#f59e0b' },
             { icon: 'layers', title: 'Batch Low-Priority Requests', desc: 'Queue non-urgent scans in batch mode at 60% cost vs real-time.', color: '#3b82f6' },
-            { icon: 'sliders', title: 'Model Routing', desc: 'Route simple damage queries to Gemini Flash instead of GPT-4o.', color: '#a855f7' }
+            { icon: 'sliders', title: 'Model Routing', desc: 'Route simple damage queries to OpenAI GPT-4o instead of GPT-4 Vision.', color: '#a855f7' }
           ].map(t => `
                 <div style="display:flex;gap:12px;padding:12px;background:var(--bg-primary);border-radius:10px;margin-bottom:10px;">
                   <i data-lucide="${t.icon}" style="color:${t.color};width:18px;height:18px;margin-top:2px;flex-shrink:0;"></i>
@@ -3434,13 +3382,13 @@
             </div>
           </div>
 
-          <!-- Per-Company Model Performance + Low Confidence Log -->
+          <!-- Per-Tenant Model Performance + Low Confidence Log -->
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
             <div class="card">
-              <div class="card-header"><span class="card-title">Per-Company Model Performance</span></div>
+              <div class="card-header"><span class="card-title">Per-Tenant Model Performance</span></div>
               <div class="table-responsive">
                 <table class="data-table">
-                  <thead><tr><th>Company</th><th>Inferences</th><th>Accuracy</th><th>Low Conf.</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Tenant</th><th>Inferences</th><th>Accuracy</th><th>Low Conf.</th><th>Status</th></tr></thead>
                   <tbody>
                     ${db.companies.map((co, i) => {
           const compInf = db.dealers.filter(d => d.company === co.name).reduce((s, d) => s + d.monthlyRequests, 0);
@@ -3808,8 +3756,265 @@
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: c.text, font: { size: 10 }, boxWidth: 10, padding: 8 } } }, cutout: '65%' }
           });
         }
-        lucide.createIcons();
       }
+    }
+
+    renderTenantAdminBillingView(canvas) {
+      const tenantInfo = this.getFilteredCompanyAdmin();
+      const coName = tenantInfo.companyName || 'Home hardware';
+      const isHH = coName.toLowerCase().includes('hardware');
+      
+      const planTier = isHH ? 'Enterprise Tier (Multi-Location)' : 'Professional Tier (Multi-Location)';
+      const baseFee = isHH ? '$32,400.00' : '$9,800.00';
+      const usedScans = isHH ? '12,450' : '4,820';
+      const totalScans = isHH ? '20,000' : '8,000';
+      const activeDealers = tenantInfo.kpis.activeDealers.value || (isHH ? 8 : 4);
+      const totalDealers = tenantInfo.kpis.totalDealers.value || (isHH ? 9 : 4);
+      const email = isHH ? 'billing@homehardware.ca' : 'accounts@bmrgroup.ca';
+      const contact = isHH ? 'Marcus Vance (VP Operations)' : 'Elena Rostova (IT Lead)';
+      const cardInfo = isHH ? 'Corporate ACH / Visa •••• 8492' : 'Mastercard Corporate •••• 3109';
+      
+      canvas.innerHTML = `
+        <div style="margin-bottom:24px;">
+          <!-- Header KPIs -->
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px;">
+            <div class="card" style="padding:20px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.06) 100%);">
+              <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Subscription Plan</div>
+              <strong style="font-size:1.3rem; color:var(--text-primary);">${planTier}</strong>
+              <div style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-top:4px;">${baseFee} / month</div>
+            </div>
+            <div class="card" style="padding:20px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.06) 100%);">
+              <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Subscription Status</div>
+              <strong style="font-size:1.3rem; color:var(--success);">Active & Paid</strong>
+              <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">Renews July 1, 2026</div>
+            </div>
+            <div class="card" style="padding:20px; border-left:4px solid #f59e0b; background:linear-gradient(135deg,var(--bg-card) 0%,rgba(245,158,11,0.06) 100%);">
+              <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Active Store Licenses</div>
+              <strong style="font-size:1.3rem; color:var(--text-primary);">${activeDealers} / ${totalDealers} Activated</strong>
+              <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">Licensed store locations</div>
+            </div>
+            <div class="card" style="padding:20px; border-left:4px solid #a855f7; background:linear-gradient(135deg,var(--bg-card) 0%,rgba(168,85,247,0.06) 100%);">
+              <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">AI Scan Usage</div>
+              <strong style="font-size:1.3rem; color:var(--text-primary);">${usedScans} / ${totalScans}</strong>
+              <div style="font-size:0.75rem; color:var(--success); margin-top:4px;">Monthly API quota</div>
+            </div>
+          </div>
+
+          <!-- Subscription Info & Payment Method -->
+          <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px; margin-bottom:24px;">
+            <div class="card" style="padding:24px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+                <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0;">Tenant Subscription Overview</h3>
+                <span class="badge badge-success" style="font-size:0.75rem;">Enterprise Active</span>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; font-size:0.83rem;">
+                <div>
+                  <span style="color:var(--text-secondary); display:block; font-size:0.72rem; text-transform:uppercase; font-weight:600;">Tenant Account</span>
+                  <strong style="color:var(--text-primary); font-size:0.95rem;">${coName}</strong>
+                </div>
+                <div>
+                  <span style="color:var(--text-secondary); display:block; font-size:0.72rem; text-transform:uppercase; font-weight:600;">Billing Term</span>
+                  <strong style="color:var(--text-primary); font-size:0.95rem;">Annual Contract (Monthly Auto-Pay)</strong>
+                </div>
+                <div>
+                  <span style="color:var(--text-secondary); display:block; font-size:0.72rem; text-transform:uppercase; font-weight:600;">Billing Manager</span>
+                  <strong style="color:var(--text-primary); font-size:0.95rem;">${contact}</strong>
+                </div>
+                <div>
+                  <span style="color:var(--text-secondary); display:block; font-size:0.72rem; text-transform:uppercase; font-weight:600;">Invoice Dispatch Email</span>
+                  <strong style="color:var(--text-primary); font-size:0.95rem;">${email}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:24px; display:flex; flex-direction:column; justify-content:space-between;">
+              <div>
+                <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0 0 16px 0; border-bottom:1px solid var(--border-color); padding-bottom:12px;">Payment Method</h3>
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; padding:12px; background:var(--bg-app); border-radius:8px;">
+                  <i data-lucide="credit-card" style="width:24px; height:24px; color:var(--primary);"></i>
+                  <div>
+                    <strong style="font-size:0.88rem; display:block;">${cardInfo}</strong>
+                    <span style="font-size:0.72rem; color:var(--text-secondary);">Auto-debit enabled on 1st of month</span>
+                  </div>
+                </div>
+              </div>
+              <button class="btn btn-secondary btn-sm" style="width:100%; font-size:0.78rem;" onclick="alert('Opening secure payment update portal...')">Update Payment Method</button>
+            </div>
+          </div>
+
+          <!-- Cost Breakdown Table -->
+          <div class="card" style="padding:24px; margin-bottom:24px;">
+            <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0 0 16px 0;">Current Month Itemized Billing Breakdown</h3>
+            <table class="table" style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr style="border-bottom:2px solid var(--border-color); font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); text-align:left;">
+                  <th style="padding:10px 14px;">Service / Charge Description</th>
+                  <th style="padding:10px 14px;">Pricing Model</th>
+                  <th style="padding:10px 14px; text-align:right;">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom:1px solid var(--border-color); font-size:0.83rem;">
+                  <td style="padding:12px 14px; font-weight:600;">Enterprise Core Platform Licensing (${totalDealers} Stores)</td>
+                  <td style="padding:12px 14px;"><span class="badge badge-info">Flat Rate</span></td>
+                  <td style="padding:12px 14px; text-align:right; font-weight:700;">${isHH ? '$20,000.00' : '$5,000.00'}</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border-color); font-size:0.83rem;">
+                  <td style="padding:12px 14px; font-weight:600;">OpenAI GPT-4 Vision & GPT-4o Token Usage (${usedScans} AI Scans)</td>
+                  <td style="padding:12px 14px;"><span class="badge badge-warning">Usage Based</span></td>
+                  <td style="padding:12px 14px; text-align:right; font-weight:700;">${isHH ? '$7,840.00' : '$3,300.00'}</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border-color); font-size:0.83rem;">
+                  <td style="padding:12px 14px; font-weight:600;">Qdrant Vector Search Engine (${coName} Isolated Catalog Collection)</td>
+                  <td style="padding:12px 14px;"><span class="badge badge-warning">Usage Based</span></td>
+                  <td style="padding:12px 14px; text-align:right; font-weight:700;">${isHH ? '$2,560.00' : '$1,500.00'}</td>
+                </tr>
+                ${isHH ? `
+                <tr style="border-bottom:1px solid var(--border-color); font-size:0.83rem;">
+                  <td style="padding:12px 14px; font-weight:600;">24/7 SLA Priority Enterprise Support</td>
+                  <td style="padding:12px 14px;"><span class="badge badge-success">Add-on</span></td>
+                  <td style="padding:12px 14px; text-align:right; font-weight:700;">$2,000.00</td>
+                </tr>` : ''}
+                <tr style="font-size:0.95rem; background:rgba(37,99,235,0.04);">
+                  <td style="padding:14px; font-weight:700; color:var(--primary);" colspan="2">Total Monthly Subscription Invoice Amount</td>
+                  <td style="padding:14px; text-align:right; font-weight:800; color:var(--primary); font-size:1.1rem;">${baseFee}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Past Invoices History -->
+          <div class="card" style="padding:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0;">Invoice Statements & Receipts</h3>
+              <button class="btn btn-secondary btn-sm" onclick="alert('Downloading all invoice receipts ZIP...')"><i data-lucide="download" style="width:14px; height:14px; margin-right:4px;"></i> Export All</button>
+            </div>
+            <table class="table" style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr style="border-bottom:2px solid var(--border-color); font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); text-align:left;">
+                  <th style="padding:10px 14px;">Invoice ID</th>
+                  <th style="padding:10px 14px;">Billing Period</th>
+                  <th style="padding:10px 14px;">Date Issued</th>
+                  <th style="padding:10px 14px;">Amount</th>
+                  <th style="padding:10px 14px;">Status</th>
+                  <th style="padding:10px 14px; text-align:right;">Receipt</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom:1px solid var(--border-color); font-size:0.83rem;">
+                  <td style="padding:12px 14px; font-weight:700; font-family:monospace; color:var(--primary);">INV-2026-06</td>
+                  <td style="padding:12px 14px; font-weight:600;">June 2026</td>
+                  <td style="padding:12px 14px; color:var(--text-secondary);">2026-06-01</td>
+                  <td style="padding:12px 14px; font-weight:700;">${baseFee}</td>
+                  <td style="padding:12px 14px;"><span class="badge badge-success">Paid</span></td>
+                  <td style="padding:12px 14px; text-align:right;">
+                    <button class="btn btn-secondary btn-sm" style="padding:2px 8px; font-size:0.72rem;" onclick="alert('Downloading PDF for INV-2026-06...')">
+                      <i data-lucide="file-text" style="width:12px; height:12px; margin-right:4px;"></i> PDF Receipt
+                    </button>
+                  </td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border-color); font-size:0.83rem;">
+                  <td style="padding:12px 14px; font-weight:700; font-family:monospace; color:var(--primary);">INV-2026-05</td>
+                  <td style="padding:12px 14px; font-weight:600;">May 2026</td>
+                  <td style="padding:12px 14px; color:var(--text-secondary);">2026-05-01</td>
+                  <td style="padding:12px 14px; font-weight:700;">${baseFee}</td>
+                  <td style="padding:12px 14px;"><span class="badge badge-success">Paid</span></td>
+                  <td style="padding:12px 14px; text-align:right;">
+                    <button class="btn btn-secondary btn-sm" style="padding:2px 8px; font-size:0.72rem;" onclick="alert('Downloading PDF for INV-2026-05...')">
+                      <i data-lucide="file-text" style="width:12px; height:12px; margin-right:4px;"></i> PDF Receipt
+                    </button>
+                  </td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border-color); font-size:0.83rem;">
+                  <td style="padding:12px 14px; font-weight:700; font-family:monospace; color:var(--primary);">INV-2026-04</td>
+                  <td style="padding:12px 14px; font-weight:600;">April 2026</td>
+                  <td style="padding:12px 14px; color:var(--text-secondary);">2026-04-01</td>
+                  <td style="padding:12px 14px; font-weight:700;">${baseFee}</td>
+                  <td style="padding:12px 14px;"><span class="badge badge-success">Paid</span></td>
+                  <td style="padding:12px 14px; text-align:right;">
+                    <button class="btn btn-secondary btn-sm" style="padding:2px 8px; font-size:0.72rem;" onclick="alert('Downloading PDF for INV-2026-04...')">
+                      <i data-lucide="file-text" style="width:12px; height:12px; margin-right:4px;"></i> PDF Receipt
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    renderBillingView(canvas) {
+      const db = this.getFilteredSuperAdmin();
+      const now = new Date();
+      const expiring = db.companies.filter(co => {
+        const d = new Date(co.expiryDate);
+        const diff = (d - now) / (1000 * 60 * 60 * 24);
+        return diff < 60 && diff > 0;
+      });
+      const totalMonthlyRevenue = db.companies.reduce((s, co) => {
+        const planMap = { 'Enterprise Gold': 1499, 'Enterprise Platinum': 1899, 'Premium Standard': 899 };
+        return s + (planMap[co.subscriptionPlan] || 499);
+      }, 0);
+
+      canvas.innerHTML = `
+        <!-- Billing KPI Header -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-bottom:24px;">
+          <div class="card" style="padding:20px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.07) 100%);">
+            <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:6px;">Monthly Revenue</div>
+            <strong style="font-size:1.8rem; color:var(--success);">$${totalMonthlyRevenue.toLocaleString()}</strong>
+            <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">Across all subscriptions</div>
+          </div>
+          <div class="card" style="padding:20px; border-left:4px solid #3b82f6; background:linear-gradient(135deg,var(--bg-card) 0%,rgba(59,130,246,0.07) 100%);">
+            <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:6px;">Active Subscriptions</div>
+            <strong style="font-size:1.8rem; color:#3b82f6;">${db.companies.filter(c => c.status === 'Active').length}</strong>
+            <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">Fully paid companies</div>
+          </div>
+          <div class="card" style="padding:20px; border-left:4px solid #f59e0b; background:linear-gradient(135deg,var(--bg-card) 0%,rgba(245,158,11,0.07) 100%);">
+            <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:6px;">Expiring &lt; 60 Days</div>
+            <strong style="font-size:1.8rem; color:#f59e0b;">${expiring.length}</strong>
+            <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">Require renewal action</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Subscription Billing Details</span>
+            <button class="btn btn-secondary btn-sm flex-center" onclick="alert('Exporting billing CSV...')"><i data-lucide="download"></i> Export CSV</button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Company Name</th>
+                  <th>Plan Type</th>
+                  <th>Monthly/Yearly</th>
+                  <th>API Credits</th>
+                  <th>Extra Usage Charges</th>
+                  <th>Invoice History</th>
+                  <th>Payment Status</th>
+                  <th>Renewal Date</th>
+                  <th>GST/VAT Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${db.companies.map(co => `
+                  <tr>
+                    <td><strong>${co.name}</strong></td>
+                    <td><span class="badge badge-info">${co.subscriptionPlan}</span></td>
+                    <td>Monthly</td>
+                    <td><strong>${co.apiLimit - 450}</strong> / ${co.apiLimit} units</td>
+                    <td><span style="color:var(--danger); font-weight:600;">$12.50</span></td>
+                    <td><button class="btn btn-secondary btn-sm flex-center" onclick="alert('Downloading invoice PDF for ${co.name}...')"><i data-lucide="download" style="width:12px; height:12px;"></i> PDF</button></td>
+                    <td><span class="badge badge-success">Paid</span></td>
+                    <td>${co.expiryDate}</td>
+                    <td><code>GST-890124-CA</code></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
     }
 
     // ----------------------------------------------------
@@ -6647,12 +6852,9 @@
 
                 <!-- Company Filter -->
                 <select class="form-control dropdown-filter" style="width: 140px; font-size: 0.85rem; padding: 4px 8px; height: 32px;" onchange="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'company', this.value)">
-                  <option value="">All Companies</option>
+                  <option value="">All Tenants</option>
                   <option value="Home hardware" ${filterCompany === 'Home hardware' ? 'selected' : ''}>Home hardware</option>
-                  <option value="My Depot" ${filterCompany === 'My Depot' ? 'selected' : ''}>My Depot</option>
-                  <option value="Rona" ${filterCompany === 'Rona' ? 'selected' : ''}>Rona</option>
                   <option value="BMR Group" ${filterCompany === 'BMR Group' ? 'selected' : ''}>BMR Group</option>
-                  <option value="Tottens" ${filterCompany === 'Tottens' ? 'selected' : ''}>Tottens</option>
                 </select>
 
                 <!-- City Filter -->
@@ -7268,12 +7470,9 @@
 
                 <!-- Company Filter -->
                 <select class="form-control dropdown-filter" style="width: 140px; font-size: 0.85rem; padding: 4px 8px; height: 32px;" onchange="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'company', this.value)">
-                  <option value="">All Companies</option>
+                  <option value="">All Tenants</option>
                   <option value="Home hardware" ${filterCompany === 'Home hardware' ? 'selected' : ''}>Home hardware</option>
-                  <option value="My Depot" ${filterCompany === 'My Depot' ? 'selected' : ''}>My Depot</option>
-                  <option value="Rona" ${filterCompany === 'Rona' ? 'selected' : ''}>Rona</option>
                   <option value="BMR Group" ${filterCompany === 'BMR Group' ? 'selected' : ''}>BMR Group</option>
-                  <option value="Tottens" ${filterCompany === 'Tottens' ? 'selected' : ''}>Tottens</option>
                 </select>
 
                 <!-- City Filter -->
@@ -8150,7 +8349,7 @@
     }
 
     exportCompaniesCsv(tableKey) {
-      const headers = ["Company ID", "Company Name", "Email", "Industry", "Plan Tier", "Dealers Registered", "Status", "Contract Expiry"];
+      const headers = ["Tenant ID", "Tenant Name", "Email", "Industry", "Plan Tier", "Dealers Registered", "Status", "Contract Expiry"];
       const rows = this.state.db.superAdmin.companies.map(co => [
         co.id, co.name, co.email, co.industryType, co.subscriptionPlan, co.totalDealers, co.status, co.expiryDate
       ]);
@@ -8251,7 +8450,7 @@
       if (!co) return;
       const body = `
         <div class="form-group">
-          <label class="form-label">Company Name</label>
+          <label class="form-label">Tenant Name</label>
           <input type="text" id="editCoName" class="form-control" value="${co.name}">
         </div>
         <div class="form-group">
@@ -8271,7 +8470,7 @@
         <button class="btn btn-secondary" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
         <button class="btn btn-primary" onclick="window.BotNBoltApp.saveCompanyDetails('${co.id}')">Save Changes</button>
       `;
-      this.showModal(`Edit Company Details: ${co.name}`, body, footer);
+      this.showModal(`Edit Tenant Details: ${co.name}`, body, footer);
     }
 
     saveCompanyDetails(id) {
@@ -8284,7 +8483,7 @@
         this.saveState();
         this.closeModalForce();
         this.renderCurrentView();
-        alert("Company details updated.");
+        alert("Tenant details updated.");
       }
     }
 
@@ -8423,6 +8622,1358 @@
           </div>
         </div>
       `;
+    }
+
+    // ----------------------------------------------------
+    // TENANT AWS USAGE & BILLING DASHBOARD VIEW
+    // ----------------------------------------------------
+    renderTenantAwsUsageBillingView(canvas) {
+      const rawAws = (this.state.db.superAdmin && this.state.db.superAdmin.tenantAwsBilling) ||
+                     (this.state.db.supportAdmin && this.state.db.supportAdmin.tenantAwsBilling) ||
+                     (window.BotNBoltMockData.superAdmin && window.BotNBoltMockData.superAdmin.tenantAwsBilling) ||
+                     (window.BotNBoltMockData.supportAdmin && window.BotNBoltMockData.supportAdmin.tenantAwsBilling);
+      
+      if (!this.state.db.superAdmin) this.state.db.superAdmin = {};
+      this.state.db.superAdmin.tenantAwsBilling = JSON.parse(JSON.stringify(rawAws));
+      const data = this.state.db.superAdmin.tenantAwsBilling;
+      const kpis = data.kpis;
+      const insights = data.topInsights;
+      const tenants = data.tenants;
+      const storage = data.storageAnalytics;
+      const aiUsage = data.aiUsageAnalytics;
+      const requests = data.requestAnalytics;
+      const summary = data.billingSummary;
+      const events = data.billingEvents;
+      const recommendations = data.recommendations;
+
+      const searchKey = 'aws_tenant_search';
+      const searchVal = (this.state.searchQueries[searchKey] || '').toLowerCase();
+      const planFilter = this.state.dropdownFilters['aws_plan_filter'] || 'ALL';
+      const statusFilter = this.state.dropdownFilters['aws_status_filter'] || 'ALL';
+
+      const filteredTenants = tenants.filter(t => {
+        const matchesSearch = t.name.toLowerCase().includes(searchVal) ||
+                              t.plan.toLowerCase().includes(searchVal) ||
+                              t.country.toLowerCase().includes(searchVal);
+        const matchesPlan = planFilter === 'ALL' || t.plan.includes(planFilter);
+        const matchesStatus = statusFilter === 'ALL' || t.invoiceStatus === statusFilter;
+        return matchesSearch && matchesPlan && matchesStatus;
+      });
+
+      canvas.innerHTML = `
+        <!-- Top Action Bar -->
+        <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+          <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.exportReport()">
+            <i data-lucide="file-text" style="width:14px; height:14px;"></i> Export Report
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.downloadTenantAwsCsv()">
+            <i data-lucide="download" style="width:14px; height:14px;"></i> Download CSV
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="window.BotNBoltApp.generateInvoiceModal()">
+            <i data-lucide="receipt" style="width:14px; height:14px;"></i> Generate Invoice
+          </button>
+        </div>
+
+        <!-- Global Filters Horizontal Pill Section -->
+        <div class="card" style="padding:16px; margin-bottom:24px; border-radius:var(--radius-lg); background:var(--bg-card); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div class="filter-pill-group">
+            <div style="display:flex; align-items:center; gap:6px; font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-right:4px;">
+              <i data-lucide="filter" style="width:14px; height:14px; color:var(--primary);"></i> Filters:
+            </div>
+            
+            <!-- Date Range Picker -->
+            <select class="filter-pill-select" onchange="window.BotNBoltApp.setAwsFilter('date_range', this.value)">
+              <option value="JUL_2026">📅 Date: Jul 2026 (Last 30 Days)</option>
+              <option value="Q3_2026">📅 Date: Q3 2026 (Quarter to Date)</option>
+              <option value="YTD_2026">📅 Date: YTD 2026</option>
+              <option value="CUSTOM">📅 Date: Custom Range...</option>
+            </select>
+
+            <!-- Tenant Selector -->
+            <select class="filter-pill-select" onchange="window.BotNBoltApp.setAwsFilter('tenant_select', this.value)">
+              <option value="ALL">🏢 Tenant: All Enterprises (${tenants.length})</option>
+              ${tenants.map(t => `<option value="${t.id}">🏢 ${t.name}</option>`).join('')}
+            </select>
+
+            <!-- AWS Service Selector -->
+            <select class="filter-pill-select" onchange="window.BotNBoltApp.setAwsFilter('service_select', this.value)">
+              <option value="ALL">☁️ Service: All AWS Services</option>
+              <option value="Bedrock">🤖 Amazon Bedrock</option>
+              <option value="S3">📦 Amazon S3</option>
+              <option value="ECS">⚡ Amazon ECS / Fargate</option>
+              <option value="API_Gateway">🔌 API Gateway</option>
+              <option value="Textract">📄 Amazon Textract</option>
+              <option value="CloudFront">🌐 CloudFront</option>
+              <option value="CloudWatch">📊 CloudWatch</option>
+              <option value="Lambda">⚡ AWS Lambda</option>
+            </select>
+
+            <!-- Country / Region -->
+            <select class="filter-pill-select" onchange="window.BotNBoltApp.setAwsFilter('region_select', this.value)">
+              <option value="ALL">🌍 Region: All Regions</option>
+              <option value="ca-central-1">🇨🇦 Canada (ca-central-1)</option>
+              <option value="us-east-1">🇺🇸 US East (us-east-1)</option>
+              <option value="us-west-2">🇺🇸 US West (us-west-2)</option>
+            </select>
+
+            <!-- Subscription Plan -->
+            <select class="filter-pill-select" onchange="window.BotNBoltApp.setAwsFilter('aws_plan_filter', this.value)">
+              <option value="ALL">💎 Plan: All Plans</option>
+              <option value="Enterprise Custom">Enterprise Custom</option>
+              <option value="Enterprise Platinum">Enterprise Platinum</option>
+              <option value="Enterprise Gold">Enterprise Gold</option>
+              <option value="Enterprise Standard">Enterprise Standard</option>
+            </select>
+
+            <!-- Invoice Status -->
+            <select class="filter-pill-select" onchange="window.BotNBoltApp.setAwsFilter('aws_status_filter', this.value)">
+              <option value="ALL">💳 Status: All Statuses</option>
+              <option value="Paid">Paid</option>
+              <option value="Pending">Pending</option>
+              <option value="Processing">Processing</option>
+              <option value="Overdue">Overdue</option>
+            </select>
+          </div>
+
+          <!-- Search Tenant Input -->
+          <div style="position:relative; min-width:220px;">
+            <i data-lucide="search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:14px; height:14px; color:var(--text-muted);"></i>
+            <input type="text" placeholder="Search tenant..." class="filter-pill-select" style="padding-left:34px; width:100%; border-radius:9999px;" value="${searchVal}" oninput="window.BotNBoltApp.setSearchQuery('aws_tenant_search', this.value)">
+          </div>
+        </div>
+
+        <!-- 6 Premium KPI Cards Grid -->
+        <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap:16px; margin-bottom:24px;">
+          
+          <!-- Card 1: Total AWS Cost -->
+          <div class="card" style="padding:16px; border-radius:var(--radius-lg); border-left:4px solid var(--primary); background:linear-gradient(135deg, var(--bg-card) 0%, rgba(37,99,235,0.04) 100%); transition:transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+              <span style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:var(--text-secondary);">Total AWS Cost</span>
+              <div style="width:28px; height:28px; border-radius:8px; background:rgba(37,99,235,0.1); display:flex; align-items:center; justify-content:center; color:var(--primary);">
+                <i data-lucide="server" style="width:16px; height:16px;"></i>
+              </div>
+            </div>
+            <strong style="font-size:1.35rem; font-weight:800; color:var(--text-primary); font-family:var(--font-family);">$${kpis.totalAwsCost.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+              <span style="font-size:0.7rem; color:var(--success); font-weight:600; background:var(--success-glow); padding:2px 6px; border-radius:4px;">${kpis.awsCostChange}</span>
+              <span style="font-size:0.68rem; color:var(--text-muted);">Monthly AWS Cost</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Total Revenue -->
+          <div class="card" style="padding:16px; border-radius:var(--radius-lg); border-left:4px solid var(--success); background:linear-gradient(135deg, var(--bg-card) 0%, rgba(16,185,129,0.04) 100%); transition:transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+              <span style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:var(--text-secondary);">Total Revenue</span>
+              <div style="width:28px; height:28px; border-radius:8px; background:rgba(16,185,129,0.1); display:flex; align-items:center; justify-content:center; color:var(--success);">
+                <i data-lucide="trending-up" style="width:16px; height:16px;"></i>
+              </div>
+            </div>
+            <strong style="font-size:1.35rem; font-weight:800; color:var(--text-primary); font-family:var(--font-family);">$${kpis.totalRevenue.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+              <span style="font-size:0.7rem; color:var(--success); font-weight:600; background:var(--success-glow); padding:2px 6px; border-radius:4px;">${kpis.revenueChange}</span>
+              <span style="font-size:0.68rem; color:var(--text-muted);">Monthly Revenue</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Gross Profit -->
+          <div class="card" style="padding:16px; border-radius:var(--radius-lg); border-left:4px solid #8b5cf6; background:linear-gradient(135deg, var(--bg-card) 0%, rgba(139,92,246,0.04) 100%); transition:transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+              <span style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:var(--text-secondary);">Gross Profit</span>
+              <div style="width:28px; height:28px; border-radius:8px; background:rgba(139,92,246,0.1); display:flex; align-items:center; justify-content:center; color:#8b5cf6;">
+                <i data-lucide="badge-dollar-sign" style="width:16px; height:16px;"></i>
+              </div>
+            </div>
+            <strong style="font-size:1.35rem; font-weight:800; color:var(--text-primary); font-family:var(--font-family);">$${kpis.grossProfit.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+              <span style="font-size:0.7rem; color:#8b5cf6; font-weight:700; background:rgba(139,92,246,0.1); padding:2px 6px; border-radius:4px;">${kpis.profitMargin}% Margin</span>
+              <span style="font-size:0.68rem; color:var(--text-muted);">Rev – AWS Cost</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Active Enterprise Tenants -->
+          <div class="card" style="padding:16px; border-radius:var(--radius-lg); border-left:4px solid #06b6d4; background:linear-gradient(135deg, var(--bg-card) 0%, rgba(6,182,212,0.04) 100%); transition:transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+              <span style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:var(--text-secondary);">Active Tenants</span>
+              <div style="width:28px; height:28px; border-radius:8px; background:rgba(6,182,212,0.1); display:flex; align-items:center; justify-content:center; color:#06b6d4;">
+                <i data-lucide="building-2" style="width:16px; height:16px;"></i>
+              </div>
+            </div>
+            <strong style="font-size:1.35rem; font-weight:800; color:var(--text-primary); font-family:var(--font-family);">${kpis.activeTenants} Tenants</strong>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+              <span style="font-size:0.7rem; color:#06b6d4; font-weight:600; background:rgba(6,182,212,0.1); padding:2px 6px; border-radius:4px;">${kpis.newTenants}</span>
+              <span style="font-size:0.68rem; color:var(--text-muted);">Enterprise Orgs</span>
+            </div>
+          </div>
+
+          <!-- Card 5: Total Requests Processed -->
+          <div class="card" style="padding:16px; border-radius:var(--radius-lg); border-left:4px solid var(--warning); background:linear-gradient(135deg, var(--bg-card) 0%, rgba(245,158,11,0.04) 100%); transition:transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+              <span style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:var(--text-secondary);">Requests Processed</span>
+              <div style="width:28px; height:28px; border-radius:8px; background:var(--warning-glow); display:flex; align-items:center; justify-content:center; color:var(--warning);">
+                <i data-lucide="zap" style="width:16px; height:16px;"></i>
+              </div>
+            </div>
+            <strong style="font-size:1.35rem; font-weight:800; color:var(--text-primary); font-family:var(--font-family);">${kpis.totalRequests}</strong>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+              <span style="font-size:0.7rem; color:var(--warning); font-weight:600; background:var(--warning-glow); padding:2px 6px; border-radius:4px;">${kpis.requestsChange}</span>
+              <span style="font-size:0.68rem; color:var(--text-muted);">Monthly Calls</span>
+            </div>
+          </div>
+
+          <!-- Card 6: Total Storage Used -->
+          <div class="card" style="padding:16px; border-radius:var(--radius-lg); border-left:4px solid #ec4899; background:linear-gradient(135deg, var(--bg-card) 0%, rgba(236,72,153,0.04) 100%); transition:transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+              <span style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:var(--text-secondary);">Total Storage</span>
+              <div style="width:28px; height:28px; border-radius:8px; background:rgba(236,72,153,0.1); display:flex; align-items:center; justify-content:center; color:#ec4899;">
+                <i data-lucide="hard-drive" style="width:16px; height:16px;"></i>
+              </div>
+            </div>
+            <strong style="font-size:1.35rem; font-weight:800; color:var(--text-primary); font-family:var(--font-family);">${kpis.totalStorage}</strong>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+              <span style="font-size:0.7rem; color:#ec4899; font-weight:600; background:rgba(236,72,153,0.1); padding:2px 6px; border-radius:4px;">${kpis.storageGrowth}</span>
+              <span style="font-size:0.68rem; color:var(--text-muted);">Current S3 Usage</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- AWS Cost Analytics Side-by-Side Charts -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:24px; margin-bottom:24px;">
+          
+          <!-- Left Chart: AWS Cost Distribution -->
+          <div class="card" style="padding:20px; height:340px; border-radius:var(--radius-lg);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+              <div>
+                <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-primary); margin:0;">AWS Cost Distribution</h3>
+                <span style="font-size:0.75rem; color:var(--text-secondary);">Percentage allocation across AWS infrastructure services</span>
+              </div>
+              <span style="font-size:0.75rem; background:rgba(37,99,235,0.1); color:var(--primary); padding:2px 8px; border-radius:4px; font-weight:600;">Jul 2026</span>
+            </div>
+            <div style="position:relative; height:230px; width:100%;">
+              <canvas id="awsCostDistributionChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Right Chart: Monthly AWS Cost Trend -->
+          <div class="card" style="padding:20px; height:340px; border-radius:var(--radius-lg);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--border-color); padding-bottom:12px;">
+              <div>
+                <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-primary); margin:0;">Monthly AWS Cost Trend</h3>
+                <span style="font-size:0.75rem; color:var(--text-secondary);">7-month infrastructure expense growth trajectory</span>
+              </div>
+              <span style="font-size:0.75rem; background:rgba(16,185,129,0.1); color:var(--success); padding:2px 8px; border-radius:4px; font-weight:600;">+54.6% YTD</span>
+            </div>
+            <div style="position:relative; height:230px; width:100%;">
+              <canvas id="monthlyAwsCostTrendChart"></canvas>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Top Cost Insights (4 Enterprise Insight Cards) -->
+        <div style="margin-bottom:24px;">
+          <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-primary); margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+            <i data-lucide="sparkles" style="width:18px; height:18px; color:var(--primary);"></i> Top Cost & Usage Insights
+          </h3>
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:16px;">
+            
+            <!-- Insight 1: Highest AWS Cost Tenant -->
+            <div class="card" style="padding:16px; border-radius:var(--radius-lg); display:flex; align-items:center; gap:14px; background:var(--bg-card);">
+              <div style="width:44px; height:44px; border-radius:12px; background:rgba(37,99,235,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.1rem;">
+                ${insights.highestCostTenant.logo}
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Highest AWS Cost Tenant</div>
+                <div style="font-size:1rem; font-weight:800; color:var(--text-primary); margin:2px 0;">${insights.highestCostTenant.name}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <strong style="font-size:0.85rem; color:var(--primary);">${insights.highestCostTenant.cost}</strong>
+                  <span style="font-size:0.7rem; color:var(--success); font-weight:600;">${insights.highestCostTenant.trend}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Insight 2: Highest Storage Consumer -->
+            <div class="card" style="padding:16px; border-radius:var(--radius-lg); display:flex; align-items:center; gap:14px; background:var(--bg-card);">
+              <div style="width:44px; height:44px; border-radius:12px; background:rgba(16,185,129,0.1); color:var(--success); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.1rem;">
+                ${insights.highestStorageConsumer.logo}
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Highest Storage Consumer</div>
+                <div style="font-size:1rem; font-weight:800; color:var(--text-primary); margin:2px 0;">${insights.highestStorageConsumer.name}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <strong style="font-size:0.85rem; color:var(--success);">${insights.highestStorageConsumer.storage}</strong>
+                  <span style="font-size:0.7rem; color:var(--success); font-weight:600;">${insights.highestStorageConsumer.trend}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Insight 3: Highest AI Usage -->
+            <div class="card" style="padding:16px; border-radius:var(--radius-lg); display:flex; align-items:center; gap:14px; background:var(--bg-card);">
+              <div style="width:44px; height:44px; border-radius:12px; background:rgba(245,158,11,0.1); color:var(--warning); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.1rem;">
+                ${insights.highestAiUsage.logo}
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Highest AI Usage</div>
+                <div style="font-size:1rem; font-weight:800; color:var(--text-primary); margin:2px 0;">${insights.highestAiUsage.name}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <strong style="font-size:0.78rem; color:var(--warning);">${insights.highestAiUsage.usage}</strong>
+                  <span style="font-size:0.7rem; color:var(--success); font-weight:600;">${insights.highestAiUsage.trend}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Insight 4: Most Profitable Tenant -->
+            <div class="card" style="padding:16px; border-radius:var(--radius-lg); display:flex; align-items:center; gap:14px; background:var(--bg-card);">
+              <div style="width:44px; height:44px; border-radius:12px; background:rgba(139,92,246,0.1); color:#8b5cf6; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.1rem;">
+                ${insights.mostProfitableCustomer.logo}
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Most Profitable Tenant</div>
+                <div style="font-size:1rem; font-weight:800; color:var(--text-primary); margin:2px 0;">${insights.mostProfitableCustomer.name}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <strong style="font-size:0.78rem; color:#8b5cf6;">${insights.mostProfitableCustomer.profit}</strong>
+                  <span style="font-size:0.7rem; color:var(--success); font-weight:600;">${insights.mostProfitableCustomer.trend}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Tenant AWS Usage Data Table -->
+        <div class="card" style="padding:20px; border-radius:var(--radius-lg); margin-bottom:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+            <div>
+              <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0;">Enterprise Tenant AWS Usage Directory</h3>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin:2px 0 0 0;">Click any tenant row or 'Details' button to open full-width side drawer with complete AWS breakdown</p>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <span style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Showing ${filteredTenants.length} of ${tenants.length} Tenants</span>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table class="table" style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); text-align: left; font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary);">
+                  <th style="padding:12px 14px;">Tenant Name</th>
+                  <th style="padding:12px 14px;">Plan</th>
+                  <th style="padding:12px 14px;">Active Users</th>
+                  <th style="padding:12px 14px;">Monthly Requests</th>
+                  <th style="padding:12px 14px;">Storage Used</th>
+                  <th style="padding:12px 14px;">AI Tokens</th>
+                  <th style="padding:12px 14px;">AWS Infra Cost</th>
+                  <th style="padding:12px 14px;">Invoice Amount</th>
+                  <th style="padding:12px 14px;">Profit Margin</th>
+                  <th style="padding:12px 14px;">Status</th>
+                  <th style="padding:12px 14px; text-align:right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredTenants.map(t => {
+                  const statusBadgeClass = t.invoiceStatus === 'Paid' ? 'badge-success' : t.invoiceStatus === 'Pending' ? 'badge-warning' : t.invoiceStatus === 'Processing' ? 'badge-info' : 'badge-danger';
+                  return `
+                    <tr style="border-bottom:1px solid var(--border-color); font-size:0.85rem; transition:background-color 0.15s; cursor:pointer;" onmouseenter="this.style.backgroundColor='var(--bg-app)'" onmouseleave="this.style.backgroundColor=''" onclick="window.BotNBoltApp.openTenantDrawer('${t.id}')">
+                      <td style="padding:14px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:32px; height:32px; border-radius:8px; background:rgba(37,99,235,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.85rem;">
+                            ${t.logo}
+                          </div>
+                          <div>
+                            <strong style="color:var(--text-primary); font-size:0.9rem; display:block;">${t.name}</strong>
+                            <small style="color:var(--text-muted); font-size:0.7rem;">${t.country} • ${t.region}</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td style="padding:14px;">
+                        <span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary); font-weight:600; font-size:0.75rem;">${t.plan}</span>
+                      </td>
+                      <td style="padding:14px; font-weight:600; color:var(--text-primary);">${t.activeUsers}</td>
+                      <td style="padding:14px; font-weight:500; color:var(--text-secondary);">${t.monthlyRequests}</td>
+                      <td style="padding:14px; font-weight:600; color:#ec4899;">${t.storageUsed}</td>
+                      <td style="padding:14px; font-weight:500; color:var(--text-secondary);">${t.aiTokens}</td>
+                      <td style="padding:14px; font-weight:800; color:var(--text-primary);">$${t.awsCost.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+                      <td style="padding:14px; font-weight:800; color:var(--primary);">$${t.customerInvoice.toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+                      <td style="padding:14px;">
+                        <div style="font-weight:700; color:var(--success);">$${t.profit.toLocaleString('en-US', {minimumFractionDigits:2})}</div>
+                        <small style="color:var(--text-muted); font-size:0.7rem;">${t.profitMargin} margin</small>
+                      </td>
+                      <td style="padding:14px;">
+                        <span class="badge ${statusBadgeClass}">${t.invoiceStatus}</span>
+                      </td>
+                      <td style="padding:14px; text-align:right;" onclick="event.stopPropagation()">
+                        <div style="display:flex; gap:6px; justify-content:flex-end;">
+                          <button class="btn btn-secondary btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="window.BotNBoltApp.openTenantDrawer('${t.id}')" title="View Details Drawer">
+                            <i data-lucide="eye" style="width:12px; height:12px;"></i> Details
+                          </button>
+                          <button class="btn btn-primary btn-sm" style="padding:4px 8px; font-size:0.75rem;" onclick="window.BotNBoltApp.generateInvoiceModal('${t.id}')" title="Generate Invoice">
+                            <i data-lucide="receipt" style="width:12px; height:12px;"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Storage Analytics Section -->
+        <div style="margin-bottom:24px;">
+          <div class="card" style="padding:24px; border-radius:var(--radius-lg);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+              <div>
+                <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px;">
+                  <i data-lucide="hard-drive" style="width:18px; height:18px; color:#ec4899;"></i> Enterprise Cloud Storage Analytics
+                </h3>
+                <p style="font-size:0.75rem; color:var(--text-secondary); margin:2px 0 0 0;">Storage consumption metrics, file retention policy rules, and monthly growth trend</p>
+              </div>
+              <span class="badge" style="background:rgba(236,72,153,0.1); color:#ec4899; font-weight:600;">${storage.metrics.retentionPolicy}</span>
+            </div>
+
+            <!-- Storage Breakdown Metric Cards -->
+            <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:12px; margin-bottom:20px;">
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px; text-align:center;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; display:block;">Images</span>
+                <strong style="font-size:1.1rem; color:var(--text-primary);">${storage.metrics.images}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px; text-align:center;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; display:block;">PDF Manuals</span>
+                <strong style="font-size:1.1rem; color:var(--text-primary);">${storage.metrics.pdfs}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px; text-align:center;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; display:block;">AI Reports</span>
+                <strong style="font-size:1.1rem; color:var(--text-primary);">${storage.metrics.reports}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px; text-align:center;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; display:block;">Voice Files</span>
+                <strong style="font-size:1.1rem; color:var(--text-primary);">${storage.metrics.voice}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px; text-align:center;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; display:block;">Videos</span>
+                <strong style="font-size:1.1rem; color:var(--text-primary);">${storage.metrics.videos}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px; text-align:center;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; display:block;">Glacier Archive</span>
+                <strong style="font-size:1.1rem; color:#8b5cf6;">${storage.metrics.archivedGlacier}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px; text-align:center;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; display:block;">Monthly Growth</span>
+                <strong style="font-size:1.1rem; color:var(--success);">${storage.metrics.monthlyGrowth}</strong>
+              </div>
+            </div>
+
+            <!-- Storage Trend Chart -->
+            <div style="position:relative; height:200px; width:100%;">
+              <canvas id="storageTrendChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Usage Analytics Section -->
+        <div style="margin-bottom:24px;">
+          <div class="card" style="padding:24px; border-radius:var(--radius-lg);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+              <div>
+                <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px;">
+                  <i data-lucide="cpu" style="width:18px; height:18px; color:var(--primary);"></i> AI Token & Model Inference Analytics
+                </h3>
+                <p style="font-size:0.75rem; color:var(--text-secondary); margin:2px 0 0 0;">Vision AI token usage, daily inference cost, and AI model distribution</p>
+              </div>
+              <span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary); font-weight:600;">Top Model: ${aiUsage.metrics.mostUsedModel}</span>
+            </div>
+
+            <!-- AI KPI Metric Cards Row -->
+            <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap:12px; margin-bottom:20px;">
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Input Tokens</span>
+                <strong style="font-size:1.1rem; color:var(--text-primary); display:block; margin-top:2px;">${aiUsage.metrics.inputTokens}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Output Tokens</span>
+                <strong style="font-size:1.1rem; color:var(--text-primary); display:block; margin-top:2px;">${aiUsage.metrics.outputTokens}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Avg Tokens / Req</span>
+                <strong style="font-size:1.1rem; color:var(--text-primary); display:block; margin-top:2px;">${aiUsage.metrics.avgTokensPerReq}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">AI Requests</span>
+                <strong style="font-size:1.1rem; color:var(--primary); display:block; margin-top:2px;">${aiUsage.metrics.aiRequests}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Avg Cost / Req</span>
+                <strong style="font-size:1.1rem; color:var(--success); display:block; margin-top:2px;">${aiUsage.metrics.avgAiCost}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:12px; border-radius:10px;">
+                <span style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Avg Latency</span>
+                <strong style="font-size:1.1rem; color:var(--warning); display:block; margin-top:2px;">${aiUsage.metrics.avgResponseTime}</strong>
+              </div>
+            </div>
+
+            <!-- AI Charts Grid (3 Charts) -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px;">
+              <div>
+                <h4 style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:8px;">Token Consumption Trend</h4>
+                <div style="position:relative; height:180px; width:100%;">
+                  <canvas id="aiTokenTrendChart"></canvas>
+                </div>
+              </div>
+              <div>
+                <h4 style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:8px;">Daily AI Infrastructure Cost</h4>
+                <div style="position:relative; height:180px; width:100%;">
+                  <canvas id="aiDailyCostChart"></canvas>
+                </div>
+              </div>
+              <div>
+                <h4 style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:8px;">AI Model Distribution</h4>
+                <div style="position:relative; height:180px; width:100%;">
+                  <canvas id="aiModelDistributionChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Request-Level AWS Usage Table -->
+        <div class="card" style="padding:20px; border-radius:var(--radius-lg); margin-bottom:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+            <div>
+              <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0;">Request-Level AWS Usage Analytics</h3>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin:2px 0 0 0;">Inspect individual API request execution logs. Click any request to view its full AWS workflow timeline.</p>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table class="table" style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); text-align: left; font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary);">
+                  <th style="padding:10px 14px;">Request ID</th>
+                  <th style="padding:10px 14px;">User</th>
+                  <th style="padding:10px 14px;">Tenant</th>
+                  <th style="padding:10px 14px;">Module</th>
+                  <th style="padding:10px 14px;">AI Model</th>
+                  <th style="padding:10px 14px;">Storage</th>
+                  <th style="padding:10px 14px;">AWS Services Used</th>
+                  <th style="padding:10px 14px;">Time</th>
+                  <th style="padding:10px 14px;">Est. Cost</th>
+                  <th style="padding:10px 14px; text-align:right;">Workflow</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${requests.map(r => {
+                  return `
+                    <tr style="border-bottom:1px solid var(--border-color); font-size:0.83rem; cursor:pointer;" onclick="window.BotNBoltApp.openWorkflowModal('${r.id}')" onmouseenter="this.style.backgroundColor='var(--bg-app)'" onmouseleave="this.style.backgroundColor=''">
+                      <td style="padding:12px 14px; font-weight:700; font-family:monospace; color:var(--primary);">${r.id}</td>
+                      <td style="padding:12px 14px; font-weight:600; color:var(--text-primary);">${r.user}</td>
+                      <td style="padding:12px 14px;"><span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary);">${r.tenant}</span></td>
+                      <td style="padding:12px 14px; color:var(--text-secondary);">${r.module}</td>
+                      <td style="padding:12px 14px; font-weight:600; color:var(--text-primary);"><span class="badge badge-info" style="font-size:0.7rem;">${r.model}</span></td>
+                      <td style="padding:12px 14px; color:var(--text-muted); font-family:monospace;">${r.storage}</td>
+                      <td style="padding:12px 14px;"><span style="font-size:0.75rem; color:var(--text-secondary); font-family:monospace;">${r.services}</span></td>
+                      <td style="padding:12px 14px; font-weight:600; color:var(--warning);">${r.time}</td>
+                      <td style="padding:12px 14px; font-weight:700; color:var(--success);">${r.cost}</td>
+                      <td style="padding:12px 14px; text-align:right;">
+                        <button class="btn btn-secondary btn-sm" style="padding:2px 8px; font-size:0.72rem;" onclick="event.stopPropagation(); window.BotNBoltApp.openWorkflowModal('${r.id}')">
+                          <i data-lucide="git-commit" style="width:12px; height:12px;"></i> View Flow
+                        </button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Billing Summary & Invoice Actions Row -->
+        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:24px; margin-bottom:24px;">
+          
+          <!-- Left: Enterprise Billing Summary Invoice Card -->
+          <div class="card" style="padding:24px; border-radius:var(--radius-lg); background:linear-gradient(135deg, var(--bg-card) 0%, rgba(37,99,235,0.02) 100%); border:1px solid var(--border-color);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:14px;">
+              <div>
+                <h3 style="font-size:1.15rem; font-weight:800; color:var(--text-primary); margin:0;">Enterprise Master Billing Summary</h3>
+                <p style="font-size:0.75rem; color:var(--text-secondary); margin:2px 0 0 0;">Consolidated July 2026 infrastructure, platform SaaS, and AI token charges</p>
+              </div>
+              <span class="badge badge-success" style="font-size:0.8rem; padding:4px 10px;">Billing Cycle: Active</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:20px;">
+              <div style="background:var(--bg-app); padding:14px; border-radius:10px;">
+                <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">AWS Infrastructure Charges</div>
+                <strong style="font-size:1.2rem; color:var(--text-primary);">$${summary.awsInfraCost.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:14px; border-radius:10px;">
+                <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Platform SaaS Subscription</div>
+                <strong style="font-size:1.2rem; color:var(--text-primary);">$${summary.platformCharges.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:14px; border-radius:10px;">
+                <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Bedrock AI Service Charges</div>
+                <strong style="font-size:1.2rem; color:var(--primary);">$${summary.aiServiceCharges.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+              </div>
+              <div style="background:var(--bg-app); padding:14px; border-radius:10px;">
+                <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Dedicated SLA Support</div>
+                <strong style="font-size:1.2rem; color:var(--text-primary);">$${summary.supportCharges.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+              </div>
+            </div>
+
+            <div style="border-top:1px dashed var(--border-color); padding-top:14px; display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
+                <span>Volume Tier Discounts</span>
+                <strong style="color:var(--success);">$${summary.discounts.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
+                <span>Harmonized Sales Tax (HST/GST 13%)</span>
+                <strong style="color:var(--text-primary);">$${summary.taxes.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; border-top:2px solid var(--border-color); padding-top:12px; margin-top:6px;">
+                <strong style="font-size:1.1rem; color:var(--text-primary);">Total Master Invoice Amount</strong>
+                <strong style="font-size:1.4rem; color:var(--primary); font-weight:800;">$${summary.finalInvoiceAmount.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Invoice Actions & Ledger Navigation -->
+          <div class="card" style="padding:24px; border-radius:var(--radius-lg); display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0 0 4px 0;">Invoice Actions</h3>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:16px;">Enterprise invoicing workflows and ledger controls</p>
+              
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <button class="btn btn-primary" style="width:100%;" onclick="window.BotNBoltApp.generateInvoiceModal()">
+                  <i data-lucide="receipt" style="width:16px; height:16px;"></i> Generate Invoice
+                </button>
+                <button class="btn btn-secondary" style="width:100%;" onclick="alert('Downloading PDF Invoice Statement...')">
+                  <i data-lucide="download" style="width:16px; height:16px;"></i> Download PDF
+                </button>
+                <button class="btn btn-secondary" style="width:100%;" onclick="alert('Sending email statement to enterprise billing contacts...')">
+                  <i data-lucide="mail" style="width:16px; height:16px;"></i> Send Email Invoice
+                </button>
+                <button class="btn btn-secondary" style="width:100%;" onclick="alert('Opening micro-billing ledger audit trail...')">
+                  <i data-lucide="book-open" style="width:16px; height:16px;"></i> View Billing Ledger
+                </button>
+                <button class="btn btn-secondary" style="width:100%;" onclick="alert('Fetching Stripe ACH payment history logs...')">
+                  <i data-lucide="history" style="width:16px; height:16px;"></i> Payment History
+                </button>
+                <button class="btn btn-secondary" style="width:100%;" onclick="window.BotNBoltApp.downloadTenantAwsCsv()">
+                  <i data-lucide="file-spreadsheet" style="width:16px; height:16px;"></i> Export Excel
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Recent Billing Events Timeline -->
+        <div class="card" style="padding:24px; border-radius:var(--radius-lg); margin-bottom:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div>
+              <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0;">Recent Billing & Infrastructure Events</h3>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin:2px 0 0 0;">Real-time feed of invoice creations, payment receipts, auto-scaling triggers, and alert events</p>
+            </div>
+          </div>
+
+          <div class="timeline-flow-list">
+            ${events.map(ev => {
+              const iconClass = ev.status === 'Success' ? 'success' : ev.status === 'Warning' ? 'warning' : 'danger';
+              return `
+                <div class="timeline-flow-item">
+                  <div class="timeline-flow-icon ${iconClass}">
+                    <i data-lucide="${ev.icon}" style="width:14px; height:14px;"></i>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                      <strong style="font-size:0.9rem; color:var(--text-primary);">${ev.eventType}</strong>
+                      <span style="font-size:0.78rem; color:var(--primary); margin-left:8px; font-weight:600;">[${ev.company}]</span>
+                      <p style="font-size:0.8rem; color:var(--text-secondary); margin:2px 0 0 0;">${ev.detail}</p>
+                    </div>
+                    <small style="color:var(--text-muted); font-size:0.75rem; white-space:nowrap;">${ev.timestamp}</small>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Sticky Footer Summary Bar -->
+        <div class="card" style="padding:16px 24px; border-radius:var(--radius-lg); background:var(--text-primary); color:white; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+          <div style="display:flex; gap:24px; align-items:center; flex-wrap:wrap;">
+            <div>
+              <div style="font-size:0.68rem; text-transform:uppercase; color:#94a3b8; font-weight:600;">Monthly AWS Cost</div>
+              <strong style="font-size:1.1rem; color:white;">$${kpis.totalAwsCost.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+            </div>
+            <div>
+              <div style="font-size:0.68rem; text-transform:uppercase; color:#94a3b8; font-weight:600;">Total Revenue</div>
+              <strong style="font-size:1.1rem; color:#34d399;">$${kpis.totalRevenue.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+            </div>
+            <div>
+              <div style="font-size:0.68rem; text-transform:uppercase; color:#94a3b8; font-weight:600;">Total Profit</div>
+              <strong style="font-size:1.1rem; color:#60a5fa;">$${kpis.grossProfit.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+            </div>
+            <div style="border-left:1px solid #334155; padding-left:24px;">
+              <div style="font-size:0.68rem; text-transform:uppercase; color:#94a3b8; font-weight:600;">Most Expensive AWS Service</div>
+              <strong style="font-size:0.85rem; color:white;">Amazon Bedrock ($10,811.30)</strong>
+            </div>
+            <div>
+              <div style="font-size:0.68rem; text-transform:uppercase; color:#94a3b8; font-weight:600;">Highest Spending Tenant</div>
+              <strong style="font-size:0.85rem; color:white;">Home Depot ($8,420.50)</strong>
+            </div>
+            <div>
+              <div style="font-size:0.68rem; text-transform:uppercase; color:#94a3b8; font-weight:600;">Largest Storage Consumer</div>
+              <strong style="font-size:0.85rem; color:white;">Home Hardware (18.4 TB)</strong>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="window.BotNBoltApp.exportReport()">
+            <i data-lucide="download" style="width:14px; height:14px;"></i> Export Executive Brief
+          </button>
+        </div>
+      `;
+
+      setTimeout(() => {
+        this.renderAwsCostDistributionChart();
+        this.renderMonthlyAwsCostTrendChart();
+        this.renderStorageTrendChart();
+        this.renderAiTokenTrendChart();
+        this.renderAiDailyCostChart();
+        this.renderAiModelDistributionChart();
+      }, 50);
+    }
+
+    setAwsFilter(filterKey, val) {
+      if (!this.state.dropdownFilters) this.state.dropdownFilters = {};
+      this.state.dropdownFilters[filterKey] = val;
+      this.renderCurrentView();
+    }
+
+    setSearchQuery(key, query) {
+      if (!this.state.searchQueries) this.state.searchQueries = {};
+      this.state.searchQueries[key] = query;
+      this.renderCurrentView();
+    }
+
+    openTenantDrawer(tenantId) {
+      const data = this.state.db.superAdmin.tenantAwsBilling;
+      const tenant = data.tenants.find(t => t.id === tenantId) || data.tenants[0];
+      const panel = document.getElementById('tenantDrawerPanel');
+      if (!panel) return;
+
+      const services = tenant.breakdown.services || [];
+
+      panel.innerHTML = `
+        <div class="drawer-header">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:40px; height:40px; border-radius:10px; background:rgba(37,99,235,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1rem;">
+              ${tenant.logo}
+            </div>
+            <div>
+              <h3 style="font-size:1.2rem; font-weight:800; color:var(--text-primary); margin:0;">${tenant.name}</h3>
+              <span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary); font-size:0.75rem; margin-top:2px;">${tenant.plan} • ${tenant.country}</span>
+            </div>
+          </div>
+          <button class="action-icon-btn" onclick="window.BotNBoltApp.closeTenantDrawer()"><i data-lucide="x"></i></button>
+        </div>
+
+        <div class="drawer-body">
+          <!-- Tenant Information Grid -->
+          <div class="card" style="padding:16px; border-radius:12px;">
+            <h4 style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Tenant Information</h4>
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px;">
+              <div>
+                <span style="font-size:0.7rem; color:var(--text-muted); display:block;">Active Users</span>
+                <strong style="font-size:0.95rem; color:var(--text-primary);">${tenant.activeUsers}</strong>
+              </div>
+              <div>
+                <span style="font-size:0.7rem; color:var(--text-muted); display:block;">AWS Region</span>
+                <strong style="font-size:0.85rem; color:var(--text-primary);">${tenant.region}</strong>
+              </div>
+              <div>
+                <span style="font-size:0.7rem; color:var(--text-muted); display:block;">Joined Date</span>
+                <strong style="font-size:0.85rem; color:var(--text-primary);">${tenant.joinedDate}</strong>
+              </div>
+              <div>
+                <span style="font-size:0.7rem; color:var(--text-muted); display:block;">Invoice Status</span>
+                <span class="badge badge-success">${tenant.invoiceStatus}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Financial Summary Cards -->
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:12px;">
+            <div style="background:var(--bg-app); padding:12px; border-radius:10px;">
+              <span style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; display:block;">Est. AWS Cost</span>
+              <strong style="font-size:1.1rem; color:var(--text-primary);">$${tenant.awsCost.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+            </div>
+            <div style="background:var(--bg-app); padding:12px; border-radius:10px;">
+              <span style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; display:block;">Customer Invoice</span>
+              <strong style="font-size:1.1rem; color:var(--primary);">$${tenant.customerInvoice.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+            </div>
+            <div style="background:var(--bg-app); padding:12px; border-radius:10px;">
+              <span style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; display:block;">Gross Profit</span>
+              <strong style="font-size:1.1rem; color:var(--success);">$${tenant.profit.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+            </div>
+            <div style="background:var(--bg-app); padding:12px; border-radius:10px;">
+              <span style="font-size:0.7rem; color:var(--text-secondary); font-weight:600; display:block;">Outstanding</span>
+              <strong style="font-size:1.1rem; color:${tenant.breakdown.financials.outstanding > 0 ? 'var(--danger)' : 'var(--text-muted)'};">$${tenant.breakdown.financials.outstanding.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+            </div>
+          </div>
+
+          <!-- Usage Summary Metrics Grid -->
+          <div class="card" style="padding:16px; border-radius:12px;">
+            <h4 style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">Application Usage Summary</h4>
+            <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:10px;">
+              <div style="text-align:center; padding:8px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Total Requests</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${tenant.breakdown.requests.total}</strong>
+              </div>
+              <div style="text-align:center; padding:8px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Images Scanned</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${tenant.breakdown.requests.images}</strong>
+              </div>
+              <div style="text-align:center; padding:8px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.65rem; color:var(--text-muted); display:block;">PDFs Uploaded</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${tenant.breakdown.requests.pdfs}</strong>
+              </div>
+              <div style="text-align:center; padding:8px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.65rem; color:var(--text-muted); display:block;">Voice Requests</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${tenant.breakdown.requests.voice}</strong>
+              </div>
+              <div style="text-align:center; padding:8px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.65rem; color:var(--text-muted); display:block;">AI Conversations</span>
+                <strong style="font-size:0.9rem; color:var(--primary);">${tenant.breakdown.requests.aiConvos}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Infrastructure Usage Metrics Grid -->
+          <div class="card" style="padding:16px; border-radius:12px;">
+            <h4 style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">AWS Infrastructure Consumption</h4>
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;">
+              <div style="padding:8px 12px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.68rem; color:var(--text-muted); display:block;">Storage Used</span>
+                <strong style="font-size:0.9rem; color:#ec4899;">${tenant.breakdown.infra.storage}</strong>
+              </div>
+              <div style="padding:8px 12px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.68rem; color:var(--text-muted); display:block;">AI Tokens</span>
+                <strong style="font-size:0.9rem; color:var(--primary);">${tenant.breakdown.infra.tokens}</strong>
+              </div>
+              <div style="padding:8px 12px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.68rem; color:var(--text-muted); display:block;">OCR Textract Pages</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${tenant.breakdown.infra.ocrPages}</strong>
+              </div>
+              <div style="padding:8px 12px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.68rem; color:var(--text-muted); display:block;">API Gateway Calls</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${tenant.breakdown.infra.apiCalls}</strong>
+              </div>
+              <div style="padding:8px 12px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.68rem; color:var(--text-muted); display:block;">ECS CPU Hours</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${tenant.breakdown.infra.cpuHours}</strong>
+              </div>
+              <div style="padding:8px 12px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.68rem; color:var(--text-muted); display:block;">CloudFront Bandwidth</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${tenant.breakdown.infra.bandwidth}</strong>
+              </div>
+              <div style="padding:8px 12px; background:var(--bg-app); border-radius:8px;">
+                <span style="font-size:0.68rem; color:var(--text-muted); display:block;">Vector Search Queries</span>
+                <strong style="font-size:0.9rem; color:var(--text-primary);">${tenant.breakdown.infra.vectorSearches}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stacked Horizontal Bar Chart & AWS Service Breakdown Table -->
+          <div class="card" style="padding:16px; border-radius:12px;">
+            <h4 style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:12px;">AWS Service Cost Allocation</h4>
+            
+            <!-- Stacked Bar Visual -->
+            <div style="width:100%; height:14px; border-radius:9999px; overflow:hidden; display:flex; background:var(--bg-app); margin-bottom:16px;">
+              ${services.map((s, idx) => {
+                const colorsList = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b', '#f97316'];
+                const color = colorsList[idx % colorsList.length];
+                return `<div style="height:100%; width:${s.pct}%; background:${color};" title="${s.name}: ${s.pct}%"></div>`;
+              }).join('')}
+            </div>
+
+            <!-- Services Table -->
+            <div style="overflow-x:auto;">
+              <table class="table" style="width:100%; border-collapse:collapse;">
+                <thead>
+                  <tr style="border-bottom:2px solid var(--border-color); font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary);">
+                    <th style="padding:8px 10px;">AWS Service</th>
+                    <th style="padding:8px 10px;">Usage</th>
+                    <th style="padding:8px 10px;">Unit</th>
+                    <th style="padding:8px 10px;">Est. Cost</th>
+                    <th style="padding:8px 10px;">% of Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${services.map(s => `
+                    <tr style="border-bottom:1px solid var(--border-color); font-size:0.82rem;">
+                      <td style="padding:8px 10px; font-weight:600; color:var(--text-primary);">${s.name}</td>
+                      <td style="padding:8px 10px; color:var(--text-secondary); font-family:monospace;">${s.usage}</td>
+                      <td style="padding:8px 10px; color:var(--text-muted); font-size:0.75rem;">${s.unit}</td>
+                      <td style="padding:8px 10px; font-weight:700; color:var(--primary);">$${s.cost.toFixed(2)}</td>
+                      <td style="padding:8px 10px; font-weight:600; color:var(--text-secondary);">${s.pct}%</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Drawer Action Buttons -->
+          <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button class="btn btn-secondary" onclick="window.BotNBoltApp.closeTenantDrawer()">Close</button>
+            <button class="btn btn-primary" onclick="window.BotNBoltApp.generateInvoiceModal('${tenant.id}')">
+              <i data-lucide="receipt" style="width:14px; height:14px;"></i> Generate Invoice for ${tenant.name}
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('tenantDrawerOverlay').classList.add('active');
+      lucide.createIcons();
+    }
+
+    closeTenantDrawer() {
+      const overlay = document.getElementById('tenantDrawerOverlay');
+      if (overlay) overlay.classList.remove('active');
+    }
+
+    openWorkflowModal(reqId) {
+      const data = this.state.db.superAdmin.tenantAwsBilling;
+      const req = data.requestAnalytics.find(r => r.id === reqId) || data.requestAnalytics[0];
+      const body = document.getElementById('workflowModalBody');
+      const title = document.getElementById('workflowModalTitle');
+      if (!body || !title) return;
+
+      title.innerText = `AWS Request Execution Timeline (${req.id})`;
+
+      body.innerHTML = `
+        <div style="padding:10px 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; background:var(--bg-app); padding:12px 16px; border-radius:10px;">
+            <div>
+              <strong style="font-size:0.95rem; color:var(--text-primary); display:block;">${req.module}</strong>
+              <span style="font-size:0.75rem; color:var(--text-secondary);">Tenant: ${req.tenant} • User: ${req.user}</span>
+            </div>
+            <div style="text-align:right;">
+              <strong style="font-size:1rem; color:var(--success); display:block;">${req.cost} Est. Cost</strong>
+              <span style="font-size:0.72rem; color:var(--text-muted);">${req.time} • ${req.model}</span>
+            </div>
+          </div>
+
+          <h4 style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:16px;">End-to-End Workflow Execution Pipeline</h4>
+
+          <div class="timeline-flow-list">
+            
+            <div class="timeline-flow-item">
+              <div class="timeline-flow-icon success">1</div>
+              <div>
+                <strong style="font-size:0.88rem; color:var(--text-primary);">User Upload Initiated</strong>
+                <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">${req.user} uploaded terminal scan image (${req.storage}) via mobile web interface.</p>
+                <small style="color:var(--text-muted); font-size:0.7rem;">Timestamp: ${req.date}</small>
+              </div>
+            </div>
+
+            <div class="timeline-flow-item">
+              <div class="timeline-flow-icon success">2</div>
+              <div>
+                <strong style="font-size:0.88rem; color:var(--text-primary);">Amazon S3 Bucket Direct Write</strong>
+                <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">Object stored with KMS SSE-256 encryption in s3://botnbolt-${req.tenant.toLowerCase().replace(/[^a-z0-9]/g, '')}-uploads/ca-central-1.</p>
+                <small style="color:var(--text-muted); font-size:0.7rem;">S3 Event: s3:ObjectCreated:Put (Latency: 14 ms)</small>
+              </div>
+            </div>
+
+            <div class="timeline-flow-item">
+              <div class="timeline-flow-icon success">3</div>
+              <div>
+                <strong style="font-size:0.88rem; color:var(--text-primary);">Amazon Textract OCR Analysis</strong>
+                <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">Extracted repair serial text annotations, hardware model numbers, and part dimensions.</p>
+                <small style="color:var(--text-muted); font-size:0.7rem;">Textract API: DetectDocumentText (Confidence: 99.4%)</small>
+              </div>
+            </div>
+
+            <div class="timeline-flow-item">
+              <div class="timeline-flow-icon success">4</div>
+              <div>
+                <strong style="font-size:0.88rem; color:var(--text-primary);">Amazon Bedrock Diagnostic Inference</strong>
+                <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">LLM model (${req.model}) evaluated surface defect geometry and computed part compatibility.</p>
+                <small style="color:var(--text-muted); font-size:0.7rem;">Bedrock API: InvokeModel (Input Tokens: 840, Output Tokens: 408)</small>
+              </div>
+            </div>
+
+            <div class="timeline-flow-item">
+              <div class="timeline-flow-icon success">5</div>
+              <div>
+                <strong style="font-size:0.88rem; color:var(--text-primary);">Vector Database Catalog Search</strong>
+                <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">Matched recommended replacement materials against retail store SKU inventory database.</p>
+                <small style="color:var(--text-muted); font-size:0.7rem;">Cosine Distance Search (Matched 3 SKUs in 18 ms)</small>
+              </div>
+            </div>
+
+            <div class="timeline-flow-item">
+              <div class="timeline-flow-icon success">6</div>
+              <div>
+                <strong style="font-size:0.88rem; color:var(--text-primary);">AI Response Generated</strong>
+                <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">Returned restoration instructions and recommended retail part SKUs to the user dashboard.</p>
+                <small style="color:var(--text-muted); font-size:0.7rem;">HTTP 200 OK (${req.time} total processing time)</small>
+              </div>
+            </div>
+
+            <div class="timeline-flow-item">
+              <div class="timeline-flow-icon success">7</div>
+              <div>
+                <strong style="font-size:0.88rem; color:var(--text-primary);">Billing Event Created</strong>
+                <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">AWS EventBridge emitted billable telemetry event for tenant ${req.tenant}.</p>
+                <small style="color:var(--text-muted); font-size:0.7rem;">EventBus: botnbolt-tenant-telemetry-bus</small>
+              </div>
+            </div>
+
+            <div class="timeline-flow-item">
+              <div class="timeline-flow-icon success">8</div>
+              <div>
+                <strong style="font-size:0.88rem; color:var(--text-primary);">Billing Ledger Updated</strong>
+                <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">Debited tenant usage account by ${req.cost} infrastructure allocation cost.</p>
+                <small style="color:var(--text-muted); font-size:0.7rem;">Micro-billing ledger ID: LGD-${req.id}</small>
+              </div>
+            </div>
+
+            <div class="timeline-flow-item">
+              <div class="timeline-flow-icon success">9</div>
+              <div>
+                <strong style="font-size:0.88rem; color:var(--text-primary);">Invoice Line Item Ready</strong>
+                <p style="font-size:0.78rem; color:var(--text-secondary); margin:2px 0 0 0;">Aggregated into monthly invoice ledger for ${req.tenant}.</p>
+                <small style="color:var(--text-muted); font-size:0.7rem;">Status: Ready for Monthly Consolidation</small>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+
+      document.getElementById('workflowModalOverlay').classList.add('active');
+      lucide.createIcons();
+    }
+
+    closeWorkflowModal() {
+      const overlay = document.getElementById('workflowModalOverlay');
+      if (overlay) overlay.classList.remove('active');
+    }
+
+    closeWorkflowModalForce() {
+      this.closeWorkflowModal();
+    }
+
+    downloadTenantAwsCsv() {
+      const tenants = this.state.db.superAdmin.tenantAwsBilling.tenants;
+      let csvContent = "Tenant ID,Company Name,Subscription Plan,Active Users,Monthly Requests,Storage Used,AI Tokens,AWS Infra Cost,Customer Invoice,Profit,Profit Margin,Status\n";
+      tenants.forEach(t => {
+        csvContent += `"${t.id}","${t.name}","${t.plan}",${t.activeUsers},"${t.monthlyRequests}","${t.storageUsed}","${t.aiTokens}",${t.awsCost},${t.customerInvoice},${t.profit},"${t.profitMargin}","${t.invoiceStatus}"\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "BotNBolt_Tenant_AWS_Usage_Billing_Jul2026.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    exportReport() {
+      alert("Executive AWS Usage & Profitability Report generated!\n\nSummary:\n- Total AWS Monthly Cost: $28,450.80\n- Total Revenue: $142,600.00\n- Gross Profit: $114,149.20 (80.05% Margin)\n- Active Enterprise Tenants: 18\n\nPDF download initiated.");
+    }
+
+    generateInvoiceModal(tenantId) {
+      const tenants = (this.state.db.superAdmin && this.state.db.superAdmin.tenantAwsBilling && this.state.db.superAdmin.tenantAwsBilling.tenants) || [];
+      const selectedId = tenantId || (tenants.length > 0 ? tenants[0].id : 'ALL');
+      const isMaster = selectedId === 'ALL';
+      const tenant = tenants.find(t => t.id === selectedId) || tenants[0] || { name: 'Home Hardware', plan: 'Enterprise Platinum', awsCost: 6150.20, customerInvoice: 32400.00, aiTokens: '112.5M', id: 'TNT-001' };
+      
+      const title = isMaster ? `Generate Master Enterprise Invoice` : `Generate Invoice - ${tenant.name}`;
+      const body = `
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          
+          <!-- Tenant Selector Dropdown -->
+          <div>
+            <label style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:var(--text-secondary); display:block; margin-bottom:6px;">Select Invoice Recipient</label>
+            <select class="form-control" style="width:100%; font-size:0.9rem; font-weight:600;" onchange="window.BotNBoltApp.generateInvoiceModal(this.value)">
+              <option value="ALL" ${isMaster ? 'selected' : ''}>🌐 Master Consolidated Invoice (All Tenants - $42,200.00)</option>
+              ${tenants.map(t => `<option value="${t.id}" ${t.id === selectedId ? 'selected' : ''}>🏢 ${t.name} (${t.plan} - $${t.customerInvoice.toLocaleString('en-US', {minimumFractionDigits:2})})</option>`).join('')}
+            </select>
+          </div>
+
+          ${isMaster ? `
+            <div style="background:var(--bg-app); padding:16px; border-radius:10px;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                <strong style="color:var(--text-primary); font-size:1.05rem;">Consolidated Enterprise Master Invoice</strong>
+                <span class="badge badge-success">2 Active Tenants</span>
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-secondary);">Billing Period: July 1, 2026 – July 31, 2026</div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
+                <span>Total AWS Infrastructure Charges</span>
+                <strong style="color:var(--text-primary);">$7,570.20</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
+                <span>Base SaaS Subscriptions (Home Hardware & BMR Group)</span>
+                <strong style="color:var(--text-primary);">$25,000.00</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
+                <span>AI Token Usage Charges (151.1M Tokens)</span>
+                <strong style="color:var(--primary);">$9,630.00</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
+                <span>Volume Tier Discounts</span>
+                <strong style="color:var(--success);">-$2,000.00</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; border-top:2px solid var(--border-color); padding-top:10px; margin-top:6px;">
+                <strong style="font-size:1rem; color:var(--text-primary);">Total Master Invoice Amount</strong>
+                <strong style="font-size:1.25rem; color:var(--primary);">$42,200.00</strong>
+              </div>
+            </div>
+          ` : `
+            <div style="background:var(--bg-app); padding:16px; border-radius:10px;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                <strong style="color:var(--text-primary); font-size:1.05rem;">${tenant.name}</strong>
+                <span class="badge badge-success">${tenant.plan}</span>
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-secondary);">Billing Period: July 1, 2026 – July 31, 2026</div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
+                <span>AWS Infrastructure Cost Allocation</span>
+                <strong style="color:var(--text-primary);">$${tenant.awsCost.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
+                <span>Base Platform & Enterprise SaaS Charges</span>
+                <strong style="color:var(--text-primary);">$${(tenant.customerInvoice * 0.7).toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary);">
+                <span>AI Token Usage Charges (${tenant.aiTokens})</span>
+                <strong style="color:var(--primary);">$${(tenant.customerInvoice * 0.3).toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; border-top:2px solid var(--border-color); padding-top:10px; margin-top:6px;">
+                <strong style="font-size:1rem; color:var(--text-primary);">Total Billable Amount</strong>
+                <strong style="font-size:1.25rem; color:var(--primary);">$${tenant.customerInvoice.toLocaleString('en-US', {minimumFractionDigits:2})}</strong>
+              </div>
+            </div>
+          `}
+        </div>
+      `;
+      const footer = `
+        <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="alert('Invoice #INV-${isMaster ? 'MASTER' : tenant.id}-202607 has been generated and dispatched to ${isMaster ? 'all enterprise' : tenant.name} billing contacts.'); window.BotNBoltApp.closeModalForce();">
+          <i data-lucide="send" style="width:12px; height:12px;"></i> Confirm & Send Invoice
+        </button>
+      `;
+      this.showModal(title, body, footer);
+    }
+
+    openBillingSettings() {
+      const title = `AWS Billing & Budget Alert Settings`;
+      const body = `
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div>
+            <label style="font-size:0.8rem; font-weight:600; color:var(--text-primary); display:block; margin-bottom:4px;">Monthly AWS Spend Alert Threshold ($)</label>
+            <input type="number" value="30000" class="form-control" style="width:100%;">
+          </div>
+          <div>
+            <label style="font-size:0.8rem; font-weight:600; color:var(--text-primary); display:block; margin-bottom:4px;">Bedrock AI Token Cap per Request</label>
+            <input type="number" value="4096" class="form-control" style="width:100%;">
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="checkbox" checked id="autoPurgeChk">
+            <label for="autoPurgeChk" style="font-size:0.85rem; color:var(--text-primary);">Enable Automatic S3 Glacier Storage Archiving after 90 days</label>
+          </div>
+        </div>
+      `;
+      const footer = `
+        <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="alert('AWS Billing settings saved successfully.'); window.BotNBoltApp.closeModalForce();">Save Settings</button>
+      `;
+      this.showModal(title, body, footer);
+    }
+
+    applyRecommendation(recId) {
+      const rec = this.state.db.superAdmin.tenantAwsBilling.recommendations.find(r => r.id === recId);
+      alert(`Cost Optimization Action Applied!\n\nRule: ${rec ? rec.title : recId}\nEstimated Savings: ${rec ? rec.savings : '$1,000/mo'}\n\nAWS Infrastructure policy rules updated successfully.`);
+    }
+
+    renderAwsCostDistributionChart() {
+      const ctx = document.getElementById('awsCostDistributionChart');
+      if (!ctx) return;
+      const data = this.state.db.superAdmin.tenantAwsBilling.awsCostDistribution;
+      this.state.charts.awsDistribution = new Chart(ctx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: data.map(d => d.service),
+          datasets: [{
+            data: data.map(d => d.percentage),
+            backgroundColor: data.map(d => d.color),
+            borderWidth: 2,
+            borderColor: this.state.theme === 'dark' ? '#111827' : '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                boxWidth: 12,
+                font: { family: 'Inter', size: 11 },
+                color: this.state.theme === 'dark' ? '#94a3b8' : '#475569'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    renderMonthlyAwsCostTrendChart() {
+      const ctx = document.getElementById('monthlyAwsCostTrendChart');
+      if (!ctx) return;
+      const trend = this.state.db.superAdmin.tenantAwsBilling.monthlyCostTrend;
+      const colors = this.getChartColors();
+      this.state.charts.monthlyAwsTrend = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: trend.labels,
+          datasets: [{
+            label: 'Monthly AWS Cost ($)',
+            data: trend.costs,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: '#2563eb'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { family: 'Inter' } } },
+            y: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { family: 'Inter' } } }
+          }
+        }
+      });
+    }
+
+    renderStorageTrendChart() {
+      const ctx = document.getElementById('storageTrendChart');
+      if (!ctx) return;
+      const trend = this.state.db.superAdmin.tenantAwsBilling.storageAnalytics.trend;
+      const colors = this.getChartColors();
+      this.state.charts.storageTrend = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: trend.labels,
+          datasets: [{
+            label: 'Total Storage (TB)',
+            data: trend.dataTB,
+            borderColor: '#ec4899',
+            backgroundColor: 'rgba(236, 72, 153, 0.08)',
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: colors.grid }, ticks: { color: colors.text } },
+            y: { grid: { color: colors.grid }, ticks: { color: colors.text } }
+          }
+        }
+      });
+    }
+
+    renderAiTokenTrendChart() {
+      const ctx = document.getElementById('aiTokenTrendChart');
+      if (!ctx) return;
+      const trend = this.state.db.superAdmin.tenantAwsBilling.aiUsageAnalytics.tokenTrend;
+      const colors = this.getChartColors();
+      this.state.charts.aiTokenTrend = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: trend.labels,
+          datasets: [
+            { label: 'Input (M)', data: trend.input, backgroundColor: '#2563eb', borderRadius: 4 },
+            { label: 'Output (M)', data: trend.output, backgroundColor: '#10b981', borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { family: 'Inter', size: 10 } } } },
+          scales: {
+            x: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { size: 10 } } },
+            y: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    renderAiDailyCostChart() {
+      const ctx = document.getElementById('aiDailyCostChart');
+      if (!ctx) return;
+      const daily = this.state.db.superAdmin.tenantAwsBilling.aiUsageAnalytics.dailyCost;
+      const colors = this.getChartColors();
+      this.state.charts.aiDailyCost = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: daily.labels,
+          datasets: [{
+            label: 'Daily Cost ($)',
+            data: daily.costs,
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { size: 10 } } },
+            y: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    renderAiModelDistributionChart() {
+      const ctx = document.getElementById('aiModelDistributionChart');
+      if (!ctx) return;
+      const models = this.state.db.superAdmin.tenantAwsBilling.aiUsageAnalytics.modelDistribution;
+      this.state.charts.aiModelDistribution = new Chart(ctx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: models.map(m => m.model),
+          datasets: [{
+            data: models.map(m => m.percentage),
+            backgroundColor: models.map(m => m.color)
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } }
+        }
+      });
     }
 
     showNotifications() {

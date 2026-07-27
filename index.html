@@ -34,7 +34,7 @@
         <div class="role-picker-label">Active Workspace Role</div>
         <select class="role-picker-select" id="roleSelector" onchange="window.BotNBoltApp.switchRole(this.value)">
           <option value="superAdmin">Super Admin</option>
-          <option value="companyAdmin">Company Admin (HQ)</option>
+          <option value="companyAdmin">Tenant Admin (HQ)</option>
           <option value="dealer">Dealer Portal</option>
           <option value="supportAdmin">Support Dashboard</option>
         </select>
@@ -139,9 +139,32 @@
     </div>
   </div>
 
+  <!-- Tenant Side Drawer Container -->
+  <div class="drawer-overlay" id="tenantDrawerOverlay" onclick="window.BotNBoltApp.closeTenantDrawer(event)">
+    <div class="drawer-panel" id="tenantDrawerPanel" onclick="event.stopPropagation()">
+      <!-- Dynamic Drawer Content -->
+    </div>
+  </div>
+
+  <!-- Request Workflow Timeline Modal Overlay -->
+  <div class="modal-overlay" id="workflowModalOverlay" onclick="window.BotNBoltApp.closeWorkflowModal(event)">
+    <div class="modal-window" style="max-width: 760px; width: 92%;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 id="workflowModalTitle">AWS Request Execution Timeline</h3>
+        <button class="action-icon-btn" onclick="window.BotNBoltApp.closeWorkflowModalForce()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" id="workflowModalBody" style="max-height: 80vh; overflow-y: auto;">
+        <!-- Flow steps appended dynamically -->
+      </div>
+      <div class="modal-footer" id="workflowModalFooter">
+        <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.closeWorkflowModalForce()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Import Scripts -->
-  <script src="mockData.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+  <script src="mockData.js?v=220"></script>
+  <script src="app.js?v=220"></script>
   
   <script>
     // Initialize Lucide Icons immediately
