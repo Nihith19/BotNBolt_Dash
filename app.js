@@ -91,6 +91,12 @@
     }
 
     init() {
+      const SCHEMA_VERSION = '2026_10_06_v6';
+      if (localStorage.getItem('botnbolt_schema_version') !== SCHEMA_VERSION) {
+        localStorage.removeItem('botnbolt_state');
+        localStorage.setItem('botnbolt_schema_version', SCHEMA_VERSION);
+      }
+
       // Load from localStorage or mockData.js
       const savedState = localStorage.getItem('botnbolt_state');
       if (savedState) {
@@ -109,8 +115,13 @@
           }
 
           // Migrate missing fields for safety
-          if (this.state.db.dealer && !this.state.db.dealer.materialRecommendations) {
+          if (this.state.db.dealer && (!this.state.db.dealer.materialRecommendations || !Array.isArray(this.state.db.dealer.materialRecommendations) || (this.state.db.dealer.materialRecommendations.length > 0 && !this.state.db.dealer.materialRecommendations[0].title))) {
             this.state.db.dealer.materialRecommendations = JSON.parse(JSON.stringify(window.BotNBoltMockData.dealer.materialRecommendations));
+            this.saveState();
+          }
+
+          if (this.state.db.dealer && (!this.state.db.dealer.repairRequests || !Array.isArray(this.state.db.dealer.repairRequests) || (this.state.db.dealer.repairRequests.length > 0 && !this.state.db.dealer.repairRequests[0].title))) {
+            this.state.db.dealer.repairRequests = JSON.parse(JSON.stringify(window.BotNBoltMockData.dealer.repairRequests));
             this.saveState();
           }
 
@@ -125,6 +136,12 @@
         }
       } else {
         this.state.db = JSON.parse(JSON.stringify(window.BotNBoltMockData));
+      }
+
+      // Ensure dealer materials recommendations & repair requests are populated with current schema
+      if (this.state.db && this.state.db.dealer) {
+        this.state.db.dealer.materialRecommendations = JSON.parse(JSON.stringify(window.BotNBoltMockData.dealer.materialRecommendations));
+        this.state.db.dealer.repairRequests = JSON.parse(JSON.stringify(window.BotNBoltMockData.dealer.repairRequests));
       }
 
       // Self-healing database initialization: enforce 2 active tenants (Home hardware & BMR Group)
@@ -5413,10 +5430,22 @@
           this.state.charts.dlrMaterials = new Chart(ctxMat.getContext('2d'), {
             type: 'bar',
             data: {
-              labels: recs.map(m => (m.name || '').split(' ').slice(0, 2).join(' ')),
-              datasets: [{ label: 'Unit Cost ($)', data: recs.map(m => m.cost || 0), backgroundColor: colors.warning, borderRadius: 4 }]
+              labels: recs.map(m => (m.title || m.name || '').split(' ').slice(0, 2).join(' ')),
+              datasets: [{
+                label: 'Available Variants',
+                data: recs.map(m => (m.variants ? m.variants.filter(v => v.available).length : 1)),
+                backgroundColor: colors.warning,
+                borderRadius: 4
+              }]
             },
-            options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: colors.grid }, ticks: { color: colors.text } }, y: { grid: { color: colors.grid }, ticks: { color: colors.text, callback: v => '$' + v } } } }
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                x: { grid: { color: colors.grid }, ticks: { color: colors.text } },
+                y: { grid: { color: colors.grid }, ticks: { color: colors.text, stepSize: 1 } }
+              }
+            }
           });
         }
 
@@ -5441,23 +5470,50 @@
 
         const filters = this.state.dropdownFilters[tableKey] || {};
         const statusFilter = filters.status || '';
+        const categoryFilter = filters.category || '';
+
+        // Ensure database repair requests array is populated with current schema
+        if (!db.repairRequests || !Array.isArray(db.repairRequests) || (db.repairRequests.length > 0 && !db.repairRequests[0].title)) {
+          db.repairRequests = JSON.parse(JSON.stringify((window.BotNBoltMockData && window.BotNBoltMockData.dealer && window.BotNBoltMockData.dealer.repairRequests) || []));
+          this.saveState();
+        }
+        const reqs = db.repairRequests;
 
         // Calculate database counts
-        const totalCount = db.repairRequests.length;
-        const newCount = db.repairRequests.filter(r => r.status === 'New').length;
-        const inspectedCount = db.repairRequests.filter(r => r.status === 'Inspected').length;
-        const quoteSentCount = db.repairRequests.filter(r => r.status === 'Quote Sent').length;
-        const completedCount = db.repairRequests.filter(r => r.status === 'Completed').length;
+        const totalCount = reqs.length;
+        const actionRequiredCount = reqs.filter(r => r.requiresAction).length;
+        const recommendedDiyCount = reqs.filter(r => r.diy_status === 'Recommended DIY').length;
+        const proRequiredCount = reqs.filter(r => r.diy_status === 'Professional Required').length;
+        const consentGrantedCount = reqs.filter(r => r.customerConsent).length;
+
+        // Unique categories for filter
+        const uniqueCategories = [...new Set(reqs.map(r => r.category).filter(Boolean))];
 
         // Filter rows
-        const filtered = db.repairRequests.filter(req => {
-          const matchesSearch = req.id.toLowerCase().includes(searchQuery) ||
-            req.customerName.toLowerCase().includes(searchQuery) ||
-            req.repairType.toLowerCase().includes(searchQuery) ||
-            req.suggestedMaterials.join(' ').toLowerCase().includes(searchQuery) ||
-            req.status.toLowerCase().includes(searchQuery);
-          const matchesStatus = !statusFilter || req.status === statusFilter;
-          return matchesSearch && matchesStatus;
+        const filtered = reqs.filter(req => {
+          const stepsStr = (req.steps || []).join(' ');
+          const safetyStr = (req.safetyTips || []).join(' ');
+          const matchesSearch = (req.id || '').toLowerCase().includes(searchQuery) ||
+            (req.title || '').toLowerCase().includes(searchQuery) ||
+            (req.full_summary || '').toLowerCase().includes(searchQuery) ||
+            (req.diagnostic || '').toLowerCase().includes(searchQuery) ||
+            (req.category || '').toLowerCase().includes(searchQuery) ||
+            (req.diy_status || '').toLowerCase().includes(searchQuery) ||
+            (req.language_code || '').toLowerCase().includes(searchQuery) ||
+            stepsStr.toLowerCase().includes(searchQuery) ||
+            safetyStr.toLowerCase().includes(searchQuery) ||
+            (req.customerName || '').toLowerCase().includes(searchQuery);
+
+          let matchesStatus = true;
+          if (statusFilter === 'Action Required') matchesStatus = !!req.requiresAction;
+          else if (statusFilter === 'Recommended DIY') matchesStatus = req.diy_status === 'Recommended DIY';
+          else if (statusFilter === 'Professional Required') matchesStatus = req.diy_status === 'Professional Required';
+          else if (statusFilter === 'Consent Granted') matchesStatus = !!req.customerConsent;
+          else if (statusFilter) matchesStatus = req.status === statusFilter || req.diy_status === statusFilter;
+
+          const matchesCategory = !categoryFilter || req.category === categoryFilter;
+
+          return matchesSearch && matchesStatus && matchesCategory;
         });
 
         // Paginate rows
@@ -5488,74 +5544,74 @@
                   <strong style="font-size:1.4rem; color:var(--text-primary);">${totalCount}</strong>
                 </div>
                 <div class="kpi-icon-container" style="background: rgba(37,99,235,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="camera" style="color:var(--primary); width:16px; height:16px;"></i>
+                  <i data-lucide="wrench" style="color:var(--primary); width:16px; height:16px;"></i>
                 </div>
               </div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Show all scans</div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">All repair workflows</div>
             </div>
 
-            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'New')" 
-                 style="padding:16px; border-left:4px solid var(--danger); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(239,68,68,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('New', 'var(--danger)')}"
-                 onmouseenter="if('${statusFilter}' !== 'New') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(239,68,68,0.1)'; }" 
-                 onmouseleave="if('${statusFilter}' !== 'New') { this.style.transform=''; this.style.boxShadow=''; }">
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Action Required')" 
+                 style="padding:16px; border-left:4px solid var(--danger); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(239,68,68,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Action Required', 'var(--danger)')}"
+                 onmouseenter="if('${statusFilter}' !== 'Action Required') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(239,68,68,0.1)'; }" 
+                 onmouseleave="if('${statusFilter}' !== 'Action Required') { this.style.transform=''; this.style.boxShadow=''; }">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">New Scans</div>
-                  <strong style="font-size:1.4rem; color:var(--danger);">${newCount}</strong>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Action Required</div>
+                  <strong style="font-size:1.4rem; color:var(--danger);">${actionRequiredCount}</strong>
                 </div>
                 <div class="kpi-icon-container" style="background: rgba(239,68,68,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="alert-circle" style="color:var(--danger); width:16px; height:16px;"></i>
+                  <i data-lucide="alert-triangle" style="color:var(--danger); width:16px; height:16px;"></i>
                 </div>
               </div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by New scans</div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Needs dealer attention</div>
             </div>
 
-            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Inspected')" 
-                 style="padding:16px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Inspected', 'var(--primary)')}"
-                 onmouseenter="if('${statusFilter}' !== 'Inspected') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(37,99,235,0.1)'; }" 
-                 onmouseleave="if('${statusFilter}' !== 'Inspected') { this.style.transform=''; this.style.boxShadow=''; }">
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Recommended DIY')" 
+                 style="padding:16px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Recommended DIY', 'var(--success)')}"
+                 onmouseenter="if('${statusFilter}' !== 'Recommended DIY') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'; }" 
+                 onmouseleave="if('${statusFilter}' !== 'Recommended DIY') { this.style.transform=''; this.style.boxShadow=''; }">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Inspected</div>
-                  <strong style="font-size:1.4rem; color:var(--primary);">${inspectedCount}</strong>
-                </div>
-                <div class="kpi-icon-container" style="background: rgba(37,99,235,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="sliders" style="color:var(--primary); width:16px; height:16px;"></i>
-                </div>
-              </div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by Inspected status</div>
-            </div>
-
-            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Quote Sent')" 
-                 style="padding:16px; border-left:4px solid var(--warning); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(245,158,11,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Quote Sent', 'var(--warning)')}"
-                 onmouseenter="if('${statusFilter}' !== 'Quote Sent') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(245,158,11,0.1)'; }" 
-                 onmouseleave="if('${statusFilter}' !== 'Quote Sent') { this.style.transform=''; this.style.boxShadow=''; }">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Quote Sent</div>
-                  <strong style="font-size:1.4rem; color:var(--warning);">${quoteSentCount}</strong>
-                </div>
-                <div class="kpi-icon-container" style="background: rgba(245,158,11,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="mail" style="color:var(--warning); width:16px; height:16px;"></i>
-                </div>
-              </div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by Quote Sent</div>
-            </div>
-
-            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Completed')" 
-                 style="padding:16px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Completed', 'var(--success)')}"
-                 onmouseenter="if('${statusFilter}' !== 'Completed') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'; }" 
-                 onmouseleave="if('${statusFilter}' !== 'Completed') { this.style.transform=''; this.style.boxShadow=''; }">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Completed</div>
-                  <strong style="font-size:1.4rem; color:var(--success);">${completedCount}</strong>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Recommended DIY</div>
+                  <strong style="font-size:1.4rem; color:var(--success);">${recommendedDiyCount}</strong>
                 </div>
                 <div class="kpi-icon-container" style="background: rgba(16,185,129,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="check-circle" style="color:var(--success); width:16px; height:16px;"></i>
+                  <i data-lucide="hammer" style="color:var(--success); width:16px; height:16px;"></i>
                 </div>
               </div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by Completed scans</div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">DIY guides available</div>
+            </div>
+
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Professional Required')" 
+                 style="padding:16px; border-left:4px solid var(--warning); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(245,158,11,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Professional Required', 'var(--warning)')}"
+                 onmouseenter="if('${statusFilter}' !== 'Professional Required') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(245,158,11,0.1)'; }" 
+                 onmouseleave="if('${statusFilter}' !== 'Professional Required') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Pro Required</div>
+                  <strong style="font-size:1.4rem; color:var(--warning);">${proRequiredCount}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(245,158,11,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="shield-alert" style="color:var(--warning); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Pro contractor referrals</div>
+            </div>
+
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Consent Granted')" 
+                 style="padding:16px; border-left:4px solid #8b5cf6; background:linear-gradient(135deg,var(--bg-card) 0%,rgba(139,92,246,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Consent Granted', '#8b5cf6')}"
+                 onmouseenter="if('${statusFilter}' !== 'Consent Granted') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(139,92,246,0.1)'; }" 
+                 onmouseleave="if('${statusFilter}' !== 'Consent Granted') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Consent Granted</div>
+                  <strong style="font-size:1.4rem; color:#8b5cf6;">${consentGrantedCount}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(139,92,246,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="check-circle-2" style="color:#8b5cf6; width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Customer approved</div>
             </div>
 
           </div>
@@ -5565,8 +5621,8 @@
           <div class="card">
             <div class="card-header">
               <div style="display:flex; flex-direction:column; gap:4px;">
-                <span class="card-title">Recent Damage Repair Scans Queue (AI Inspected)</span>
-                ${statusFilter ? `<span style="font-size: 0.78rem; color: var(--text-secondary);">Active Filter: <strong style="color: var(--primary); text-transform: uppercase;">${statusFilter}</strong></span>` : ''}
+                <span class="card-title">Damage Repair Requests & AI Diagnostics</span>
+                ${statusFilter || categoryFilter ? `<span style="font-size: 0.78rem; color: var(--text-secondary);">Active Filters: ${statusFilter ? `<strong style="color: var(--primary); text-transform: uppercase;">${statusFilter}</strong> ` : ''}${categoryFilter ? `<strong style="color: var(--primary); text-transform: uppercase;">${categoryFilter}</strong>` : ''}</span>` : ''}
               </div>
             </div>
             
@@ -5575,17 +5631,24 @@
               <div class="table-actions-left">
                 <div class="search-wrapper">
                   <i data-lucide="search"></i>
-                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search scans..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
+                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search title, diagnostic, category, steps..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
                 </div>
+
+                <select class="form-control" style="max-width: 170px; padding: 7px 12px; font-size: 0.8rem; font-weight: 500;" onchange="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'category', this.value)">
+                  <option value="">All Categories</option>
+                  ${uniqueCategories.map(cat => `<option value="${cat}" ${categoryFilter === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+                </select>
                 
                 <select class="bulk-actions-select" id="bulk-${tableKey}" style="${checked.length > 0 ? 'display:block;' : 'display:none;'}" onchange="window.BotNBoltApp.triggerBulkAction('${tableKey}', this.value)">
                   <option value="">Bulk Actions (${checked.length} Selected)</option>
-                  <option value="suspend">Mark Completed</option>
                   <option value="export">Export Selected</option>
                 </select>
               </div>
               
               <div class="table-actions-right">
+                <button class="btn btn-primary btn-sm flex-center" onclick="window.BotNBoltApp.openAddRepairRequestModal()" title="Add New Repair Request">
+                  <i data-lucide="plus"></i> Add Request
+                </button>
                 <button class="btn btn-secondary btn-sm flex-center" onclick="window.BotNBoltApp.exportRequestsDlrCsv('${tableKey}')" title="Export Current List to CSV">
                   <i data-lucide="download"></i> Export CSV
                 </button>
@@ -5599,45 +5662,79 @@
                     <th style="width: 40px; padding-left: 24px;">
                       <input type="checkbox" id="chk-all-${tableKey}" style="width:16px; height:16px; cursor:pointer;" ${checked.length === allRowIds.length && allRowIds.length > 0 ? 'checked' : ''} onchange="window.BotNBoltApp.handleSelectAllChange('${tableKey}', this.checked, ${JSON.stringify(allRowIds).replace(/"/g, '&quot;')})">
                     </th>
-                    <th>Request ID</th>
-                    <th>Customer Name</th>
-                    <th>Image Source</th>
-                    <th>Repair Target</th>
-                    <th>Estimated Cost</th>
-                    <th>Suggested Material</th>
-                    <th>Received Date</th>
-                    <th>Scan Status</th>
-                    <th>Action</th>
+                    <th>Id</th>
+                    <th>Title</th>
+                    <th>Diagnostic</th>
+                    <th>Category</th>
+                    <th>DIY Status</th>
+                    <th>Requires Action</th>
+                    <th>Consent</th>
+                    <th>Lang</th>
+                    <th>Steps</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${paginated.length === 0 ? `
                     <tr>
-                      <td colspan="10" style="text-align:center; padding: 32px; color: var(--text-secondary);">No records match your search filter.</td>
+                      <td colspan="10" style="text-align:center; padding: 36px; color: var(--text-secondary);">
+                        <i data-lucide="inbox" style="width: 32px; height: 32px; margin-bottom: 8px; opacity: 0.6;"></i>
+                        <div>No repair requests match your search or filter criteria.</div>
+                      </td>
                     </tr>
-                  ` : paginated.map(req => `
+                  ` : paginated.map(req => {
+                    const rowId = req.id;
+                    const stepsCount = (req.steps || []).length;
+                    return `
                     <tr>
                       <td style="padding-left: 24px;">
-                        <input type="checkbox" id="chk-${tableKey}-${req.id}" style="width:16px; height:16px; cursor:pointer;" ${checked.includes(req.id) ? 'checked' : ''} onchange="window.BotNBoltApp.handleCheckboxChange('${tableKey}', '${req.id}', this.checked)">
+                        <input type="checkbox" id="chk-${tableKey}-${rowId}" style="width:16px; height:16px; cursor:pointer;" ${checked.includes(rowId) ? 'checked' : ''} onchange="window.BotNBoltApp.handleCheckboxChange('${tableKey}', '${rowId}', this.checked)">
                       </td>
-                      <td><code>${req.id}</code></td>
-                      <td><strong>${req.customerName}</strong></td>
-                      <td><span style="font-size:0.8rem; color:var(--primary); font-weight:600;"><i data-lucide="image" style="width:14px; height:14px; vertical-align:middle;"></i> ${req.image}</span></td>
-                      <td>${req.repairType}</td>
-                      <td><strong>$${req.estimatedCost.toFixed(2)}</strong></td>
-                      <td><code>${req.suggestedMaterials[0]}</code></td>
-                      <td>${req.date}</td>
-                      <td><span class="badge ${req.status === 'New' ? 'badge-danger' : req.status === 'Completed' ? 'badge-success' : 'badge-warning'}">${req.status}</span></td>
                       <td>
-                        <div class="table-actions">
-                          <button class="btn btn-primary btn-sm flex-center" onclick="window.BotNBoltApp.openAiScanModal('${req.id}')" title="Inspect AI / Generate Quote"><i data-lucide="eye"></i> Inspect AI</button>
-                          <button class="action-icon-btn" onclick="alert('Client Phone: +1 (416) 555-7788 | Email: contact@client.com')" title="Contact Customer"><i data-lucide="phone"></i></button>
-                          ${req.status !== 'Completed' ? `<button class="action-icon-btn" onclick="window.BotNBoltApp.markRequestCompleted('${req.id}')" title="Mark Completed"><i data-lucide="check-circle-2"></i></button>` : ''}
-                          <button class="action-icon-btn" onclick="window.BotNBoltApp.recommendTechnician('${req.id}')" title="Recommend Technician"><i data-lucide="user-cog"></i></button>
+                        <code class="sku-tag">${rowId}</code>
+                      </td>
+                      <td>
+                        <div class="product-title-cell">
+                          <strong>${req.title || 'Untitled Request'}</strong>
+                          ${req.full_summary ? `<span style="font-size:0.72rem; color:var(--text-secondary); line-height:1.2;">${req.full_summary.slice(0, 65)}...</span>` : ''}
                         </div>
                       </td>
+                      <td>
+                        <div class="table-desc-cell" title="${(req.diagnostic || '').replace(/"/g, '&quot;')}">
+                          ${req.diagnostic || '—'}
+                        </div>
+                      </td>
+                      <td>
+                        <span class="badge badge-info">${req.category || 'General'}</span>
+                      </td>
+                      <td>
+                        <span class="badge ${req.diy_status === 'Recommended DIY' ? 'badge-success' : req.diy_status === 'Professional Required' ? 'badge-danger' : 'badge-warning'}">
+                          ${req.diy_status || 'DIY'}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge ${req.requiresAction ? 'badge-danger' : 'badge-success'}" style="font-weight:700;">
+                          <i data-lucide="${req.requiresAction ? 'alert-triangle' : 'check'}" style="width:11px; height:11px;"></i>
+                          ${req.requiresAction ? 'Action Req.' : 'Ready'}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge ${req.customerConsent ? 'badge-success' : 'badge-warning'}">
+                          <i data-lucide="${req.customerConsent ? 'check-circle-2' : 'clock'}" style="width:11px; height:11px;"></i>
+                          ${req.customerConsent ? 'Granted' : 'Pending'}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="currency-tag">${req.language_code || 'en-CA'}</span>
+                      </td>
+                      <td>
+                        <button class="btn-view-highlight" onclick="window.BotNBoltApp.openRepairStepsModal('${rowId}')" title="View ${stepsCount} step instructions, products & safety tips">
+                          <i data-lucide="list-checks" style="width: 14px; height: 14px;"></i>
+                          <span>Steps (${stepsCount})</span>
+                        </button>
+                      </td>
                     </tr>
-                  `).join('')}
+                  `;
+                  }).join('')}
                 </tbody>
               </table>
             </div>
@@ -5647,7 +5744,7 @@
               <div>
                 Showing <strong>${filtered.length === 0 ? 0 : pageIndex * pageSize + 1}</strong> to 
                 <strong>${Math.min((pageIndex + 1) * pageSize, filtered.length)}</strong> of 
-                <strong>${filtered.length}</strong> scans
+                <strong>${filtered.length}</strong> requests
               </div>
               <div class="pagination-controls">
                 <span style="margin-right:8px;">Rows per page:</span>
@@ -5673,9 +5770,10 @@
 
         const filters = this.state.dropdownFilters[tableKey] || {};
         const statusFilter = filters.status || '';
+        const categoryFilter = filters.category || '';
 
-        // Ensure recommendations is defined
-        if (!db.materialRecommendations) {
+        // Ensure recommendations is defined with modern Product structure
+        if (!db.materialRecommendations || !Array.isArray(db.materialRecommendations) || (db.materialRecommendations.length > 0 && !db.materialRecommendations[0].title)) {
           db.materialRecommendations = JSON.parse(JSON.stringify((window.BotNBoltMockData && window.BotNBoltMockData.dealer && window.BotNBoltMockData.dealer.materialRecommendations) || []));
           this.saveState();
         }
@@ -5683,29 +5781,42 @@
 
         // Calculate counts
         const totalCount = recs.length;
-        const inStockCount = recs.filter(m => m.stock && !m.stock.includes('Low')).length;
-        const lowStockCount = recs.filter(m => m.stock && m.stock.includes('Low')).length;
+        const totalVariants = recs.reduce((sum, p) => sum + ((p.variants && p.variants.length) || 1), 0);
+        const inStockCount = recs.filter(p => (p.variants || []).some(v => v.available)).length;
+        const outOfStockCount = totalCount - inStockCount;
 
-        // Filter rows
+        // Unique categories for filter
+        const uniqueCategories = [...new Set(recs.map(p => p.category).filter(Boolean))];
+
+        // Filter rows based on search, category, and status
         const filtered = recs.filter(mat => {
-          const matchesSearch = (mat.name || '').toLowerCase().includes(searchQuery) ||
-            (mat.sku || '').toLowerCase().includes(searchQuery) ||
-            (mat.stock || '').toLowerCase().includes(searchQuery);
+          const variants = mat.variants || [];
+          const matchesSearch = (mat.title || mat.name || '').toLowerCase().includes(searchQuery) ||
+            (mat.id || mat.sku || '').toLowerCase().includes(searchQuery) ||
+            (mat.description || '').toLowerCase().includes(searchQuery) ||
+            (mat.vendor || '').toLowerCase().includes(searchQuery) ||
+            (mat.category || '').toLowerCase().includes(searchQuery) ||
+            variants.some(v => (v.title || '').toLowerCase().includes(searchQuery) || (v.id || '').toLowerCase().includes(searchQuery));
 
           let matchesStatus = true;
           if (statusFilter === 'In Stock') {
-            matchesStatus = mat.stock && !mat.stock.includes('Low');
-          } else if (statusFilter === 'Low Stock') {
-            matchesStatus = mat.stock && mat.stock.includes('Low');
+            matchesStatus = variants.some(v => v.available);
+          } else if (statusFilter === 'Out of Stock') {
+            matchesStatus = variants.length > 0 && variants.every(v => !v.available);
           }
 
-          return matchesSearch && matchesStatus;
+          let matchesCategory = true;
+          if (categoryFilter) {
+            matchesCategory = (mat.category || '') === categoryFilter;
+          }
+
+          return matchesSearch && matchesStatus && matchesCategory;
         });
 
         // Paginate rows
         const paginated = filtered.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
         const totalPages = Math.ceil(filtered.length / pageSize) || 1;
-        const allRowIds = filtered.map(m => m.sku);
+        const allRowIds = filtered.map(m => m.id || m.sku);
         const checked = this.state.checkedRows[tableKey] || [];
 
         // Helper style for active card selection indication
@@ -5718,54 +5829,68 @@
 
         canvas.innerHTML = `
           <!-- Materials KPI Cards for Interactive Filtering -->
-          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
             
             <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', '')" 
-                 style="padding:20px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('', 'var(--primary)')}"
+                 style="padding:18px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('', 'var(--primary)')}"
                  onmouseenter="if('${statusFilter}' !== '') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(37,99,235,0.1)'; }" 
                  onmouseleave="if('${statusFilter}' !== '') { this.style.transform=''; this.style.boxShadow=''; }">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Total Items</div>
-                  <strong style="font-size:1.8rem; color:var(--text-primary);">${totalCount}</strong>
+                  <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:700; letter-spacing:0.04em; margin-bottom:4px;">Total Products</div>
+                  <strong style="font-size:1.7rem; color:var(--text-primary);">${totalCount}</strong>
                 </div>
-                <div class="kpi-icon-container" style="background: rgba(37,99,235,0.1); width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="package" style="color:var(--primary); width:20px; height:20px;"></i>
+                <div class="kpi-icon-container" style="background: rgba(37,99,235,0.1); width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="package" style="color:var(--primary); width:18px; height:18px;"></i>
                 </div>
               </div>
-              <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px;">Show all store inventory</div>
+              <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:6px;">Master catalog items</div>
+            </div>
+
+            <div class="card kpi-card-gradient" 
+                 style="padding:18px; border-left:4px solid #8b5cf6; background:linear-gradient(135deg,var(--bg-card) 0%,rgba(139,92,246,0.05) 100%); border-radius: var(--radius-md);">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:700; letter-spacing:0.04em; margin-bottom:4px;">Total Variants</div>
+                  <strong style="font-size:1.7rem; color:#8b5cf6;">${totalVariants}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(139,92,246,0.1); width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="layers" style="color:#8b5cf6; width:18px; height:18px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:6px;">SKU options & sizes</div>
             </div>
 
             <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'In Stock')" 
-                 style="padding:20px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('In Stock', 'var(--success)')}"
+                 style="padding:18px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('In Stock', 'var(--success)')}"
                  onmouseenter="if('${statusFilter}' !== 'In Stock') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'; }" 
                  onmouseleave="if('${statusFilter}' !== 'In Stock') { this.style.transform=''; this.style.boxShadow=''; }">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">In Stock</div>
-                  <strong style="font-size:1.8rem; color:var(--success);">${inStockCount}</strong>
+                  <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:700; letter-spacing:0.04em; margin-bottom:4px;">In Stock</div>
+                  <strong style="font-size:1.7rem; color:var(--success);">${inStockCount}</strong>
                 </div>
-                <div class="kpi-icon-container" style="background: rgba(16,185,129,0.1); width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="check-circle" style="color:var(--success); width:20px; height:20px;"></i>
+                <div class="kpi-icon-container" style="background: rgba(16,185,129,0.1); width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="check-circle" style="color:var(--success); width:18px; height:18px;"></i>
                 </div>
               </div>
-              <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px;">Filter by items in stock</div>
+              <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:6px;">Products with stock</div>
             </div>
 
-            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Low Stock')" 
-                 style="padding:20px; border-left:4px solid var(--warning); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(245,158,11,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Low Stock', 'var(--warning)')}"
-                 onmouseenter="if('${statusFilter}' !== 'Low Stock') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(245,158,11,0.1)'; }" 
-                 onmouseleave="if('${statusFilter}' !== 'Low Stock') { this.style.transform=''; this.style.boxShadow=''; }">
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Out of Stock')" 
+                 style="padding:18px; border-left:4px solid var(--warning); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(245,158,11,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Out of Stock', 'var(--warning)')}"
+                 onmouseenter="if('${statusFilter}' !== 'Out of Stock') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(245,158,11,0.1)'; }" 
+                 onmouseleave="if('${statusFilter}' !== 'Out of Stock') { this.style.transform=''; this.style.boxShadow=''; }">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Low Stock</div>
-                  <strong style="font-size:1.8rem; color:var(--warning);">${lowStockCount}</strong>
+                  <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:700; letter-spacing:0.04em; margin-bottom:4px;">Out of Stock</div>
+                  <strong style="font-size:1.7rem; color:var(--warning);">${outOfStockCount}</strong>
                 </div>
-                <div class="kpi-icon-container" style="background: rgba(245,158,11,0.1); width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="alert-triangle" style="color:var(--warning); width:20px; height:20px;"></i>
+                <div class="kpi-icon-container" style="background: rgba(245,158,11,0.1); width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="alert-triangle" style="color:var(--warning); width:18px; height:18px;"></i>
                 </div>
               </div>
-              <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px;">Filter by low stock alert</div>
+              <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:6px;">Requires reordering</div>
             </div>
 
           </div>
@@ -5773,18 +5898,28 @@
           <div class="card">
             <div class="card-header">
               <div style="display:flex; flex-direction:column; gap:4px;">
-                <span class="card-title">Local Material Stock & Inventory Pricing</span>
-                ${statusFilter ? `<span style="font-size: 0.78rem; color: var(--text-secondary);">Active Filter: <strong style="color: var(--primary); text-transform: uppercase;">${statusFilter}</strong></span>` : ''}
+                <span class="card-title">Dealer Materials & Product Catalog</span>
+                <span style="font-size: 0.78rem; color: var(--text-secondary);">
+                  Browse store products, vendors, and click on <strong style="color: var(--primary);">Variants</strong> to view individual SKUs, images, pricing, and quantities.
+                  ${statusFilter ? ` | Active Status Filter: <strong style="color: var(--primary);">${statusFilter}</strong>` : ''}
+                  ${categoryFilter ? ` | Active Category: <strong style="color: var(--primary);">${categoryFilter}</strong>` : ''}
+                </span>
               </div>
             </div>
             
             <!-- Table Action Controls -->
-            <div class="table-header-actions" style="padding: 0 24px; margin-top: 10px;">
-              <div class="table-actions-left">
+            <div class="table-header-actions" style="padding: 0 24px; margin-top: 10px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between;">
+              <div class="table-actions-left" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                 <div class="search-wrapper">
                   <i data-lucide="search"></i>
-                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search inventory..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
+                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search products, vendors, SKUs..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
                 </div>
+
+                <!-- Category Filter Dropdown -->
+                <select class="form-control" style="width: auto; height: 38px; padding: 0 12px; font-size: 0.8rem; border-radius: var(--radius-sm);" onchange="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'category', this.value)">
+                  <option value="">All Categories</option>
+                  ${uniqueCategories.map(cat => `<option value="${cat}" ${categoryFilter === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+                </select>
                 
                 <select class="bulk-actions-select" id="bulk-${tableKey}" style="${checked.length > 0 ? 'display:block;' : 'display:none;'}" onchange="window.BotNBoltApp.triggerBulkAction('${tableKey}', this.value)">
                   <option value="">Bulk Actions (${checked.length} Selected)</option>
@@ -5792,8 +5927,11 @@
                 </select>
               </div>
               
-              <div class="table-actions-right">
-                <button class="btn btn-secondary btn-sm flex-center" onclick="window.BotNBoltApp.exportMaterialsDlrCsv('${tableKey}')" title="Export Current List to CSV">
+              <div class="table-actions-right" style="display: flex; gap: 8px;">
+                <button class="btn btn-primary btn-sm flex-center" onclick="window.BotNBoltApp.openAddProductModal()" title="Add New Product to Catalog">
+                  <i data-lucide="plus"></i> Add Product
+                </button>
+                <button class="btn btn-secondary btn-sm flex-center" onclick="window.BotNBoltApp.exportMaterialsDlrCsv('${tableKey}')" title="Export Products Catalog to CSV">
                   <i data-lucide="download"></i> Export CSV
                 </button>
               </div>
@@ -5806,30 +5944,77 @@
                     <th style="width: 40px; padding-left: 24px;">
                       <input type="checkbox" id="chk-all-${tableKey}" style="width:16px; height:16px; cursor:pointer;" ${checked.length === allRowIds.length && allRowIds.length > 0 ? 'checked' : ''} onchange="window.BotNBoltApp.handleSelectAllChange('${tableKey}', this.checked, ${JSON.stringify(allRowIds).replace(/"/g, '&quot;')})">
                     </th>
-                    <th>Material Name</th>
-                    <th>SKU Number</th>
-                    <th>Local Stock Availability</th>
-                    <th>Unit Cost</th>
-                    <th>Frequently Purchased</th>
+                    <th>Id</th>
+                    <th>Title</th>
+                    <th>Desc</th>
+                    <th>Vendor</th>
+                    <th>Category</th>
+                    <th>Currency</th>
+                    <th>Variants</th>
+                    <th style="text-align: right; padding-right: 24px;">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${paginated.length === 0 ? `
                     <tr>
-                      <td colspan="10" style="text-align:center; padding: 32px; color: var(--text-secondary);">No records match your search filter.</td>
+                      <td colspan="10" style="text-align:center; padding: 36px; color: var(--text-secondary);">
+                        <i data-lucide="package-search" style="width: 32px; height: 32px; margin-bottom: 8px; opacity: 0.6;"></i>
+                        <div>No products match your search or category filter.</div>
+                      </td>
                     </tr>
-                  ` : paginated.map(mat => `
+                  ` : paginated.map(mat => {
+                    const rowId = mat.id || mat.sku;
+                    const variantsList = mat.variants || [];
+                    const variantsCount = variantsList.length;
+                    return `
                     <tr>
                       <td style="padding-left: 24px;">
-                        <input type="checkbox" id="chk-${tableKey}-${mat.sku}" style="width:16px; height:16px; cursor:pointer;" ${checked.includes(mat.sku) ? 'checked' : ''} onchange="window.BotNBoltApp.handleCheckboxChange('${tableKey}', '${mat.sku}', this.checked)">
+                        <input type="checkbox" id="chk-${tableKey}-${rowId}" style="width:16px; height:16px; cursor:pointer;" ${checked.includes(rowId) ? 'checked' : ''} onchange="window.BotNBoltApp.handleCheckboxChange('${tableKey}', '${rowId}', this.checked)">
                       </td>
-                      <td><strong>${mat.name}</strong></td>
-                      <td><code>${mat.sku}</code></td>
-                      <td><span class="badge ${mat.stock.includes('Low') ? 'badge-warning' : 'badge-success'}">${mat.stock}</span></td>
-                      <td><strong>$${mat.cost.toFixed(2)}</strong></td>
-                      <td>${mat.frequentlyPurchased ? '<span class="badge badge-info">Popular</span>' : 'Standard'}</td>
+                      <td>
+                        <code class="sku-tag">${rowId}</code>
+                      </td>
+                      <td>
+                        <div class="product-title-cell">
+                          <strong>${mat.title || mat.name || 'Untitled'}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="table-desc-cell" title="${(mat.description || '').replace(/"/g, '&quot;')}">
+                          ${mat.description || '—'}
+                        </div>
+                      </td>
+                      <td>
+                        <span class="vendor-tag">
+                          <i data-lucide="building" style="width:12px; height:12px; opacity:0.7;"></i>
+                          ${mat.vendor || '—'}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge badge-info">${mat.category || 'General'}</span>
+                      </td>
+                      <td>
+                        <span class="currency-tag">${mat.currency || 'CAD'}</span>
+                      </td>
+                      <td>
+                        <button class="btn-view-highlight" onclick="window.BotNBoltApp.openVariantsModal('${rowId}')" title="View all ${variantsCount} variants in table">
+                          <i data-lucide="eye" style="width: 14px; height: 14px;"></i>
+                          <span>View (${variantsCount})</span>
+                        </button>
+                      </td>
+                      <td style="text-align: right; padding-right: 24px;">
+                        <div class="row-actions-group">
+                          <button class="action-icon-btn edit" onclick="window.BotNBoltApp.openEditProductModal('${rowId}')" title="Edit Product">
+                            <i data-lucide="edit-3" style="width: 15px; height: 15px;"></i>
+                          </button>
+                          <button class="action-icon-btn danger" onclick="window.BotNBoltApp.deleteProduct('${rowId}')" title="Delete Product">
+                            <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
+                          </button>
+                        </div>
+                      </td>
                     </tr>
-                  `).join('')}
+                  `;
+                  }).join('')}
                 </tbody>
               </table>
             </div>
@@ -5839,7 +6024,7 @@
               <div>
                 Showing <strong>${filtered.length === 0 ? 0 : pageIndex * pageSize + 1}</strong> to 
                 <strong>${Math.min((pageIndex + 1) * pageSize, filtered.length)}</strong> of 
-                <strong>${filtered.length}</strong> items
+                <strong>${filtered.length}</strong> products
               </div>
               <div class="pagination-controls">
                 <span style="margin-right:8px;">Rows per page:</span>
@@ -6399,10 +6584,15 @@
     }
 
     openAiScanModal(requestId) {
-      const req = this.state.db.dealer.repairRequests.find(r => r.id === requestId);
+      const req = (this.state.db.dealer.repairRequests || []).find(r => r.id === requestId);
       if (!req) return;
 
-      const title = `AI Scan Report: ${req.id} - ${req.customerName}`;
+      const title = `AI Scan Report: ${req.id} - ${req.title || req.customerName || 'Inspection'}`;
+      const detections = req.aiDetections || [
+        { type: "Damage Zone", confidence: 95.0, box: [20, 20, 80, 80], severity: "Medium" }
+      ];
+      const steps = req.steps || [];
+
       const body = `
         <div class="ai-scan-viewer">
           <!-- Left side: Bounding boxes image -->
@@ -6411,12 +6601,12 @@
             <div style="width:100%; height:100%; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); display:flex; align-items:center; justify-content:center; flex-direction:column; position:relative;">
               <div style="border: 2px dashed rgba(255,255,255,0.1); padding: 40px; border-radius: 8px; text-align:center; color:rgba(255,255,255,0.3)">
                 <i data-lucide="image" style="width:48px; height:48px; margin-bottom:12px;"></i>
-                <div style="font-size:0.8rem;">AI SCAN IMAGE PREVIEW</div>
-                <div style="font-size:0.7rem; margin-top:4px;">${req.image}</div>
+                <div style="font-size:0.8rem; font-weight:700;">AI DAMAGE SCAN VIEWPORT</div>
+                <div style="font-size:0.7rem; margin-top:4px;">${req.image || 'damage_scan'}</div>
               </div>
               
               <!-- Absolute overlays representing damage annotation -->
-              ${req.aiDetections.map(det => `
+              ${detections.map(det => `
                 <div class="ai-box" style="left:${det.box[0]}%; top:${det.box[1]}%; width:${det.box[2] - det.box[0]}%; height:${det.box[3] - det.box[1]}%;">
                   <span class="ai-box-label">${det.type} (${det.confidence.toFixed(1)}%)</span>
                 </div>
@@ -6425,25 +6615,37 @@
           </div>
 
           <!-- Right side: Details panel -->
-          <div style="display:flex; flex-direction:column; justify-content:space-between; height:100%;">
+          <div style="display:flex; flex-direction:column; justify-content:space-between; height:100%; overflow-y:auto; padding-right:4px;">
             <div>
-              <h4 style="font-weight:700; margin-bottom:12px; font-size:1.1rem; color:var(--primary);">${req.repairType}</h4>
-              <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">${req.damageDesc}</p>
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                <span class="badge badge-info">${req.category || 'General'}</span>
+                <span class="badge ${req.diy_status === 'Recommended DIY' ? 'badge-success' : req.diy_status === 'Professional Required' ? 'badge-danger' : 'badge-warning'}">${req.diy_status || 'DIY'}</span>
+                <span class="currency-tag">${req.language_code || 'en-CA'}</span>
+              </div>
+              <h4 style="font-weight:700; margin-bottom:6px; font-size:1.05rem; color:var(--text-primary); line-height:1.3;">${req.title || 'Untitled Request'}</h4>
               
-              <div class="card" style="padding:16px; background-color:var(--primary-light); border:none; margin-bottom:16px;">
-                <div style="font-size:0.75rem; text-transform:uppercase; font-weight:700; color:var(--primary); margin-bottom:6px;">Suggested Materials & Products</div>
-                <ul style="padding-left:18px; font-size:0.8rem; line-height:1.6;">
-                  ${req.suggestedMaterials.map(mat => `<li>${mat}</li>`).join('')}
-                </ul>
+              <div class="diagnostic-callout" style="padding:10px 14px; margin-bottom:12px;">
+                <div style="font-size:0.72rem; font-weight:700; color:var(--primary); text-transform:uppercase; margin-bottom:3px;">Diagnostic</div>
+                <p style="margin:0; font-size:0.8rem; color:var(--text-primary); line-height:1.4;">${req.diagnostic || req.damageDesc || 'Standard structural inspection.'}</p>
               </div>
 
-              <div style="font-size:0.85rem; margin-bottom:8px;"><strong>Calculated Margin Cost:</strong></div>
-              <div style="font-size:1.5rem; font-weight:800; color:var(--text-primary);">$${req.estimatedCost.toFixed(2)}</div>
+              ${steps.length > 0 ? `
+                <div class="card" style="padding:12px 14px; background-color:var(--primary-light); border:none; margin-bottom:12px;">
+                  <div style="font-size:0.72rem; text-transform:uppercase; font-weight:700; color:var(--primary); margin-bottom:6px;">AI Action Steps (${steps.length})</div>
+                  <ol style="padding-left:18px; font-size:0.78rem; line-height:1.5; margin:0; color:var(--text-primary);">
+                    ${steps.slice(0, 3).map(s => `<li>${s}</li>`).join('')}
+                    ${steps.length > 3 ? `<li style="color:var(--text-secondary);">+ ${steps.length - 3} more steps in full workflow</li>` : ''}
+                  </ol>
+                </div>
+              ` : ''}
+
+              <div style="font-size:0.82rem; margin-bottom:4px;"><strong>Estimated Margin & Supplies:</strong></div>
+              <div style="font-size:1.4rem; font-weight:800; color:var(--text-primary);">$${(req.estimatedCost || 25.0).toFixed(2)}</div>
             </div>
 
-            <div style="margin-top:24px; display:flex; flex-direction:column; gap:8px;">
-              <button class="btn btn-primary" style="width:100%;" onclick="window.BotNBoltApp.approveEstimate('${req.id}')">Approve Estimate & Generate Quote</button>
-              <button class="btn btn-secondary" style="width:100%;" onclick="alert('Contact details: 555-0192 / customer@email.com')">Contact Customer</button>
+            <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+              <button class="btn btn-primary" style="width:100%;" onclick="window.BotNBoltApp.openRepairStepsModal('${req.id}')">View Full Steps & Products</button>
+              <button class="btn btn-secondary" style="width:100%;" onclick="window.BotNBoltApp.approveEstimate('${req.id}')">Approve Estimate & Generate Quote</button>
             </div>
           </div>
         </div>
@@ -7796,6 +7998,817 @@
 
     closeModalForce() {
       document.getElementById('modalOverlay').classList.remove('active');
+      const modalWindow = document.querySelector('.modal-window');
+      if (modalWindow) {
+        modalWindow.style.maxWidth = '';
+      }
+    }
+
+    // ----------------------------------------------------
+    // DEALER PORTAL PRODUCT VARIANTS MODAL (TABLE VIEW)
+    // ----------------------------------------------------
+    openVariantsModal(productId) {
+      const recs = (this.state.db && this.state.db.dealer && this.state.db.dealer.materialRecommendations) || [];
+      const product = recs.find(p => (p.id || p.sku) === productId);
+      if (!product) {
+        alert("Product details not found in active catalog.");
+        return;
+      }
+
+      const variants = product.variants || [];
+      const inStockCount = variants.filter(v => v.available).length;
+      const currency = product.currency || 'CAD';
+
+      const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/><circle cx="9" cy="9" r="2"/></svg>`;
+
+      const bodyHtml = `
+        <div class="variant-modal-header-banner">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+            <div>
+              <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-secondary); font-weight: 700; letter-spacing: 0.05em; margin-bottom: 3px;">Product Master Catalog</div>
+              <h4 style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0 0 6px 0; line-height: 1.3;">${product.title || product.name || 'Untitled Product'}</h4>
+            </div>
+            <span class="sku-tag" style="font-size: 0.8rem; padding: 4px 10px; flex-shrink: 0;">ID: ${product.id || product.sku}</span>
+          </div>
+          
+          <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 6px 0 12px 0; line-height: 1.5;">${product.description || 'No description available for this product item.'}</p>
+          
+          <div class="variant-meta-row">
+            ${product.vendor ? `<span class="vendor-tag"><i data-lucide="building" style="width: 13px; height: 13px;"></i> ${product.vendor}</span>` : ''}
+            ${product.category ? `<span class="badge badge-info"><i data-lucide="tag" style="width: 12px; height: 12px; margin-right: 4px;"></i> ${product.category}</span>` : ''}
+            ${product.currency ? `<span class="currency-tag">${product.currency}</span>` : ''}
+            <span style="font-size: 0.75rem; color: var(--text-secondary); margin-left: auto;">
+              <strong>${variants.length}</strong> total variant${variants.length === 1 ? '' : 's'} (<strong style="color: var(--success);">${inStockCount}</strong> in stock)
+            </span>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h5 style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="table" style="width: 16px; height: 16px; color: var(--primary);"></i> Variants Table Breakdown
+          </h5>
+          <span style="font-size: 0.72rem; color: var(--text-secondary);">Individual SKU specifications</span>
+        </div>
+
+        ${variants.length === 0 ? `
+          <div style="text-align: center; padding: 32px; background: var(--bg-app); border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+            <i data-lucide="package-x" style="width: 36px; height: 36px; color: var(--text-secondary); margin-bottom: 8px;"></i>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0;">No variants configured for this product.</p>
+          </div>
+        ` : `
+          <div class="variant-table-container">
+            <div class="table-responsive">
+              <table class="data-table" style="margin: 0;">
+                <thead>
+                  <tr>
+                    <th style="width: 60px; padding-left: 20px;">Image</th>
+                    <th>Id</th>
+                    <th>Title</th>
+                    <th>Price</th>
+                    <th>Available</th>
+                    <th style="text-align: right; padding-right: 20px;">Quantity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${variants.map(v => `
+                    <tr>
+                      <td style="padding-left: 20px;">
+                        <img src="${v.imageSrc || fallbackSvg}" alt="${v.title}" class="variant-thumb" onerror="this.onerror=null; this.src='${fallbackSvg}';" loading="lazy">
+                      </td>
+                      <td>
+                        <code class="sku-tag">${v.id}</code>
+                      </td>
+                      <td>
+                        <strong style="font-size: 0.88rem; color: var(--text-primary);">${v.title}</strong>
+                      </td>
+                      <td>
+                        <span style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">${v.price}</span> 
+                        <small class="currency-tag" style="margin-left: 4px;">${currency}</small>
+                      </td>
+                      <td>
+                        ${v.available 
+                          ? `<span class="badge badge-success" style="font-size: 0.72rem; padding: 2px 8px;"><i data-lucide="check-circle-2" style="width: 12px; height: 12px; margin-right: 4px;"></i> Available</span>` 
+                          : `<span class="badge badge-danger" style="font-size: 0.72rem; padding: 2px 8px;"><i data-lucide="x-circle" style="width: 12px; height: 12px; margin-right: 4px;"></i> Out of Stock</span>`}
+                      </td>
+                      <td style="text-align: right; padding-right: 20px;">
+                        ${v.quantity !== undefined 
+                          ? `<span class="variant-qty-badge"><i data-lucide="boxes" style="width: 12px; height: 12px;"></i> <strong>${v.quantity}</strong> units</span>` 
+                          : '<span style="color: var(--text-secondary);">—</span>'}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `}
+      `;
+
+      const footerHtml = `
+        <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.closeModalForce()"><i data-lucide="x" style="width: 14px; height: 14px;"></i> Close</button>
+      `;
+
+      const modalWindow = document.querySelector('.modal-window');
+      if (modalWindow) {
+        modalWindow.style.maxWidth = '860px';
+      }
+
+      this.showModal(`${product.title || product.name || 'Product'} — Variants Table`, bodyHtml, footerHtml);
+      lucide.createIcons();
+    }
+
+    // ----------------------------------------------------
+    // DEALER PORTAL PRODUCT EDIT & DELETE HANDLERS
+    // ----------------------------------------------------
+    openEditProductModal(productId) {
+      const recs = (this.state.db && this.state.db.dealer && this.state.db.dealer.materialRecommendations) || [];
+      const product = recs.find(p => (p.id || p.sku) === productId);
+      if (!product) {
+        alert("Product not found.");
+        return;
+      }
+
+      const bodyHtml = `
+        <form id="editProductForm" onsubmit="event.preventDefault(); window.BotNBoltApp.saveEditedProduct('${productId}');">
+          <div class="form-row" style="margin-bottom: 16px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Product ID (SKU Code)</label>
+              <input type="text" id="editProdId" class="form-control" value="${product.id || product.sku}" readonly style="background: var(--bg-app); cursor: not-allowed;">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Currency</label>
+              <input type="text" id="editProdCurrency" class="form-control" value="${product.currency || 'CAD'}" placeholder="e.g. CAD, USD" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Product Title</label>
+            <input type="text" id="editProdTitle" class="form-control" value="${product.title || product.name || ''}" placeholder="Product Title" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Product Description (Desc)</label>
+            <textarea id="editProdDesc" class="form-control" rows="3" placeholder="Enter detailed product description...">${product.description || ''}</textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Vendor</label>
+              <input type="text" id="editProdVendor" class="form-control" value="${product.vendor || ''}" placeholder="e.g. USG Sheetrock">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select id="editProdCategory" class="form-control">
+                <option ${product.category === 'Drywall & Plaster' ? 'selected' : ''}>Drywall & Plaster</option>
+                <option ${product.category === 'Lumber & Framing' ? 'selected' : ''}>Lumber & Framing</option>
+                <option ${product.category === 'Fasteners & Hardware' ? 'selected' : ''}>Fasteners & Hardware</option>
+                <option ${product.category === 'Adhesives & Sealants' ? 'selected' : ''}>Adhesives & Sealants</option>
+                <option ${product.category === 'Paints & Finishes' ? 'selected' : ''}>Paints & Finishes</option>
+                <option ${product.category === 'Tools & Abrasives' ? 'selected' : ''}>Tools & Abrasives</option>
+                <option ${!['Drywall & Plaster', 'Lumber & Framing', 'Fasteners & Hardware', 'Adhesives & Sealants', 'Paints & Finishes', 'Tools & Abrasives'].includes(product.category) ? 'selected' : ''}>General</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      `;
+
+      const footerHtml = `
+        <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
+        <button class="btn btn-primary btn-sm flex-center" onclick="window.BotNBoltApp.saveEditedProduct('${productId}')"><i data-lucide="check" style="width: 14px; height: 14px;"></i> Save Changes</button>
+      `;
+
+      const modalWindow = document.querySelector('.modal-window');
+      if (modalWindow) {
+        modalWindow.style.maxWidth = '640px';
+      }
+
+      this.showModal(`Edit Product — ${product.id || product.sku}`, bodyHtml, footerHtml);
+      lucide.createIcons();
+    }
+
+    saveEditedProduct(productId) {
+      const recs = (this.state.db && this.state.db.dealer && this.state.db.dealer.materialRecommendations) || [];
+      const product = recs.find(p => (p.id || p.sku) === productId);
+      if (!product) return;
+
+      const newTitle = document.getElementById('editProdTitle').value.trim();
+      const newDesc = document.getElementById('editProdDesc').value.trim();
+      const newVendor = document.getElementById('editProdVendor').value.trim();
+      const newCategory = document.getElementById('editProdCategory').value;
+      const newCurrency = document.getElementById('editProdCurrency').value.trim() || 'CAD';
+
+      if (!newTitle) {
+        alert("Please enter a valid product title.");
+        return;
+      }
+
+      product.title = newTitle;
+      product.name = newTitle;
+      product.description = newDesc;
+      product.vendor = newVendor;
+      product.category = newCategory;
+      product.currency = newCurrency;
+
+      this.saveState();
+      this.closeModalForce();
+      this.renderCurrentView();
+      alert(`Product "${newTitle}" (${productId}) updated successfully.`);
+    }
+
+    deleteProduct(productId) {
+      const recs = (this.state.db && this.state.db.dealer && this.state.db.dealer.materialRecommendations) || [];
+      const product = recs.find(p => (p.id || p.sku) === productId);
+      if (!product) return;
+
+      if (confirm(`Are you sure you want to delete product "${product.title || product.name}" (${productId}) from the catalog?`)) {
+        this.state.db.dealer.materialRecommendations = recs.filter(p => (p.id || p.sku) !== productId);
+        this.saveState();
+        this.renderCurrentView();
+        alert(`Product "${product.title || product.name}" has been deleted.`);
+      }
+    }
+
+    openAddProductModal() {
+      const bodyHtml = `
+        <form id="addProdForm" onsubmit="event.preventDefault(); window.BotNBoltApp.saveNewProduct();">
+          <div class="form-row" style="margin-bottom: 16px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Product ID (SKU)</label>
+              <input type="text" id="newProdId" class="form-control" placeholder="e.g. PRD-MAT-009" value="PRD-MAT-${Math.floor(100 + Math.random() * 900)}" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Currency</label>
+              <input type="text" id="newProdCurrency" class="form-control" value="CAD" placeholder="CAD" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Product Title</label>
+            <input type="text" id="newProdTitle" class="form-control" placeholder="e.g. Heavy Duty Structural Sealant" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Product Description (Desc)</label>
+            <textarea id="newProdDesc" class="form-control" rows="2" placeholder="Enter product overview and specifications..."></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Vendor</label>
+              <input type="text" id="newProdVendor" class="form-control" placeholder="e.g. 3M Industrial">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select id="newProdCategory" class="form-control">
+                <option>Drywall & Plaster</option>
+                <option>Lumber & Framing</option>
+                <option>Fasteners & Hardware</option>
+                <option selected>Adhesives & Sealants</option>
+                <option>Paints & Finishes</option>
+                <option>Tools & Abrasives</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 14px;">
+            <h5 style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); margin: 0 0 10px 0;">Initial Variant Setup</h5>
+            <div class="form-row">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Variant Title</label>
+                <input type="text" id="newVarTitle" class="form-control" placeholder="e.g. Standard 300ml Cartridge" value="Standard 300ml Cartridge" required>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Variant Price</label>
+                <input type="text" id="newVarPrice" class="form-control" placeholder="e.g. $18.50" value="$18.50" required>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Initial Quantity</label>
+                <input type="number" id="newVarQty" class="form-control" value="25" min="0">
+              </div>
+            </div>
+          </div>
+        </form>
+      `;
+
+      const footerHtml = `
+        <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
+        <button class="btn btn-primary btn-sm flex-center" onclick="window.BotNBoltApp.saveNewProduct()"><i data-lucide="plus" style="width: 14px; height: 14px;"></i> Create Product</button>
+      `;
+
+      const modalWindow = document.querySelector('.modal-window');
+      if (modalWindow) {
+        modalWindow.style.maxWidth = '660px';
+      }
+
+      this.showModal("Add New Product to Catalog", bodyHtml, footerHtml);
+      lucide.createIcons();
+    }
+
+    saveNewProduct() {
+      const id = (document.getElementById('newProdId').value || '').trim();
+      const title = (document.getElementById('newProdTitle').value || '').trim();
+      const description = (document.getElementById('newProdDesc').value || '').trim();
+      const vendor = (document.getElementById('newProdVendor').value || '').trim();
+      const category = document.getElementById('newProdCategory').value;
+      const currency = (document.getElementById('newProdCurrency').value || 'CAD').trim();
+      const varTitle = (document.getElementById('newVarTitle').value || 'Standard Unit').trim();
+      const varPrice = (document.getElementById('newVarPrice').value || '$10.00').trim();
+      const varQty = parseInt(document.getElementById('newVarQty').value, 10) || 0;
+
+      if (!id || !title) {
+        alert("Please provide both a Product ID and Product Title.");
+        return;
+      }
+
+      const newProduct = {
+        id,
+        title,
+        name: title,
+        description,
+        vendor: vendor || 'Generic Supplier',
+        category,
+        currency,
+        variants: [
+          {
+            id: `VAR-${id.replace('PRD-', '')}-01`,
+            title: varTitle,
+            price: varPrice.startsWith('$') ? varPrice : `$${varPrice}`,
+            available: varQty > 0,
+            quantity: varQty,
+            imageSrc: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&auto=format&fit=crop&q=80"
+          }
+        ]
+      };
+
+      if (!this.state.db.dealer.materialRecommendations) {
+        this.state.db.dealer.materialRecommendations = [];
+      }
+      this.state.db.dealer.materialRecommendations.unshift(newProduct);
+      this.saveState();
+      this.closeModalForce();
+      this.renderCurrentView();
+      alert(`Product "${title}" (${id}) created successfully.`);
+    }
+
+    // ----------------------------------------------------
+    // DEALER REPAIR REQUEST WORKFLOW & STEPS MODAL
+    // ----------------------------------------------------
+    openRepairStepsModal(requestId) {
+      const req = (this.state.db.dealer.repairRequests || []).find(r => r.id === requestId);
+      if (!req) return;
+
+      const title = `Repair Workflow & Diagnostic: ${req.id} — ${req.title || 'Untitled'}`;
+      const steps = req.steps || [];
+      const stepIntents = req.stepIntents || {};
+      const stepProducts = req.stepProducts || {};
+      const backendProducts = req.backendProducts || [];
+      const safetyTips = req.safetyTips || [];
+
+      const body = `
+        <div style="display: flex; flex-direction: column; gap: 18px;">
+          
+          <!-- Header Banner -->
+          <div class="variant-modal-header-banner">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                  <code class="sku-tag" style="font-size: 0.8rem; font-weight: 700;">${req.id}</code>
+                  <span class="badge badge-info">${req.category || 'General'}</span>
+                  <span class="currency-tag">${req.language_code || 'en-CA'}</span>
+                </div>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-primary); line-height: 1.3;">
+                  ${req.title || 'Untitled Request'}
+                </h3>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span class="badge ${req.diy_status === 'Recommended DIY' ? 'badge-success' : req.diy_status === 'Professional Required' ? 'badge-danger' : 'badge-warning'}" style="font-size: 0.76rem; padding: 4px 10px;">
+                  ${req.diy_status || 'DIY'}
+                </span>
+                <span class="badge ${req.requiresAction ? 'badge-danger' : 'badge-success'}" style="font-size: 0.76rem; padding: 4px 10px; font-weight: 700;">
+                  <i data-lucide="${req.requiresAction ? 'alert-triangle' : 'check'}" style="width: 12px; height: 12px;"></i>
+                  ${req.requiresAction ? 'Action Required' : 'Ready'}
+                </span>
+                <span class="badge ${req.customerConsent ? 'badge-success' : 'badge-warning'}" style="font-size: 0.76rem; padding: 4px 10px;">
+                  <i data-lucide="${req.customerConsent ? 'check-circle-2' : 'clock'}" style="width: 12px; height: 12px;"></i>
+                  ${req.customerConsent ? 'Consent Granted' : 'Pending Consent'}
+                </span>
+              </div>
+            </div>
+
+            <!-- Full Summary -->
+            ${req.full_summary ? `
+              <div style="margin-top: 12px; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                ${req.full_summary}
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Diagnostic Callout -->
+          <div class="diagnostic-callout">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <i data-lucide="stethoscope" style="width: 16px; height: 16px; color: var(--primary);"></i>
+              <strong style="font-size: 0.85rem; color: var(--primary); text-transform: uppercase; letter-spacing: 0.04em;">AI Diagnostic Finding</strong>
+            </div>
+            <p style="margin: 0; font-size: 0.84rem; color: var(--text-primary); line-height: 1.45;">
+              ${req.diagnostic || 'No diagnostic notes available for this scan.'}
+            </p>
+          </div>
+
+          <!-- Safety Tips Callout -->
+          ${safetyTips.length > 0 ? `
+            <div class="safety-tips-callout">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <i data-lucide="shield-alert" style="width: 16px; height: 16px; color: var(--warning);"></i>
+                <strong style="font-size: 0.85rem; color: var(--warning); text-transform: uppercase; letter-spacing: 0.04em;">Safety Tips & Precautions</strong>
+              </div>
+              <ul style="margin: 0; padding-left: 20px; font-size: 0.82rem; color: var(--text-primary); line-height: 1.6;">
+                ${safetyTips.map(tip => `<li>${tip}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+
+          <!-- Step-by-Step Procedure with Intents and Step Products -->
+          <div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="list-ordered" style="width: 16px; height: 16px; color: var(--primary);"></i>
+                <span>Step-by-Step Action Plan (${steps.length} Steps)</span>
+              </h4>
+            </div>
+
+            ${steps.length === 0 ? `
+              <div style="padding: 24px; text-align: center; color: var(--text-secondary); border: 1px dashed var(--border-color); border-radius: var(--radius-md);">
+                No step-by-step instructions logged for this request.
+              </div>
+            ` : steps.map((stepText, idx) => {
+              const stepNum = idx + 1;
+              const intents = stepIntents[stepNum] || [];
+              const prods = stepProducts[stepNum] || [];
+              return `
+                <div class="step-container-card">
+                  <div class="step-header-row">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <span class="step-num-badge">${stepNum}</span>
+                      <strong style="font-size: 0.86rem; color: var(--text-primary);">Step ${stepNum}</strong>
+                    </div>
+                    ${intents.length > 0 ? `
+                      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        ${intents.map(intent => `<span class="step-intent-tag">${intent}</span>`).join('')}
+                      </div>
+                    ` : ''}
+                  </div>
+
+                  <p style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5; margin: 0 0 10px 34px;">
+                    ${stepText}
+                  </p>
+
+                  ${prods.length > 0 ? `
+                    <div style="margin-left: 34px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+                      <div style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">
+                        Recommended Materials for Step ${stepNum}
+                      </div>
+                      <div style="display: flex; flex-direction: column; gap: 6px;">
+                        ${prods.map(p => `
+                          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.02); padding: 6px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-size: 0.78rem;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                              <code class="sku-tag" style="font-size: 0.68rem;">${p.sku || p.id || 'SKU'}</code>
+                              <strong style="color: var(--text-primary);">${p.name || p.title || 'Material'}</strong>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                              <span style="color: var(--text-secondary);">Qty: <strong>${p.qty || 1}</strong></span>
+                              <span class="currency-tag" style="font-size: 0.7rem;">${p.price || '$0.00'}</span>
+                            </div>
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Backend Catalog Products -->
+          ${backendProducts.length > 0 ? `
+            <div style="margin-top: 4px;">
+              <h4 style="margin: 0 0 10px 0; font-size: 0.92rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="package" style="width: 16px; height: 16px; color: var(--primary);"></i>
+                <span>Backend Catalog Recommendations (${backendProducts.length})</span>
+              </h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px;">
+                ${backendProducts.map(bp => `
+                  <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary);">${bp.name || bp.title}</div>
+                      <div style="font-size: 0.72rem; color: var(--text-secondary);">${bp.vendor || 'Authorized Supplier'}</div>
+                    </div>
+                    <span class="currency-tag">${bp.price || '$0.00'}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+        </div>
+      `;
+
+      const footer = `
+        <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.closeModalForce()"><i data-lucide="x" style="width: 14px; height: 14px;"></i> Close</button>
+      `;
+
+      const modalWindow = document.querySelector('.modal-window');
+      if (modalWindow) {
+        modalWindow.style.maxWidth = '780px';
+      }
+
+      this.showModal(title, body, footer);
+      lucide.createIcons();
+    }
+
+    openEditRepairRequestModal(requestId) {
+      const req = (this.state.db.dealer.repairRequests || []).find(r => r.id === requestId);
+      if (!req) return;
+
+      const title = `Edit Repair Request: ${req.id}`;
+      const stepsText = (req.steps || []).join('\n');
+      const safetyText = (req.safetyTips || []).join('\n');
+
+      const body = `
+        <form id="editRepairRequestForm" onsubmit="event.preventDefault(); window.BotNBoltApp.saveEditedRepairRequest('${req.id}');">
+          <div class="form-group">
+            <label class="form-label">Request Title *</label>
+            <input type="text" id="editReqTitle" class="form-control" value="${(req.title || '').replace(/"/g, '&quot;')}" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Category *</label>
+              <input type="text" id="editReqCategory" class="form-control" value="${(req.category || 'Drywall & Plaster').replace(/"/g, '&quot;')}" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">DIY Status *</label>
+              <select id="editReqDiyStatus" class="form-control" required>
+                <option value="Recommended DIY" ${req.diy_status === 'Recommended DIY' ? 'selected' : ''}>Recommended DIY</option>
+                <option value="Moderate DIY" ${req.diy_status === 'Moderate DIY' ? 'selected' : ''}>Moderate DIY</option>
+                <option value="Assisted DIY" ${req.diy_status === 'Assisted DIY' ? 'selected' : ''}>Assisted DIY</option>
+                <option value="Professional Required" ${req.diy_status === 'Professional Required' ? 'selected' : ''}>Professional Required</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Language Code *</label>
+              <input type="text" id="editReqLang" class="form-control" value="${req.language_code || 'en-CA'}" placeholder="e.g. en-CA, fr-CA" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Diagnostic Finding *</label>
+            <textarea id="editReqDiagnostic" class="form-control" rows="2" required>${req.diagnostic || ''}</textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Full Summary Description</label>
+            <textarea id="editReqFullSummary" class="form-control" rows="3">${req.full_summary || ''}</textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Requires Action?</label>
+              <select id="editReqRequiresAction" class="form-control">
+                <option value="true" ${req.requiresAction ? 'selected' : ''}>Yes (Requires Action)</option>
+                <option value="false" ${!req.requiresAction ? 'selected' : ''}>No (Ready / Resolved)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Customer Consent</label>
+              <select id="editReqCustomerConsent" class="form-control">
+                <option value="true" ${req.customerConsent ? 'selected' : ''}>Granted</option>
+                <option value="false" ${!req.customerConsent ? 'selected' : ''}>Pending / Declined</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Repair Steps (One per line)</label>
+            <textarea id="editReqSteps" class="form-control" rows="4" placeholder="Enter each step on a new line">${stepsText}</textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Safety Tips (One per line)</label>
+            <textarea id="editReqSafetyTips" class="form-control" rows="2" placeholder="Enter each safety tip on a new line">${safetyText}</textarea>
+          </div>
+        </form>
+      `;
+
+      const footer = `
+        <button class="btn btn-secondary" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
+        <button class="btn btn-primary" onclick="window.BotNBoltApp.saveEditedRepairRequest('${req.id}')">Save Changes</button>
+      `;
+
+      const modalWindow = document.querySelector('.modal-window');
+      if (modalWindow) {
+        modalWindow.style.maxWidth = '680px';
+      }
+
+      this.showModal(title, body, footer);
+      lucide.createIcons();
+    }
+
+    saveEditedRepairRequest(requestId) {
+      const req = (this.state.db.dealer.repairRequests || []).find(r => r.id === requestId);
+      if (!req) return;
+
+      const title = document.getElementById('editReqTitle').value.trim();
+      const category = document.getElementById('editReqCategory').value.trim();
+      const diy_status = document.getElementById('editReqDiyStatus').value;
+      const language_code = document.getElementById('editReqLang').value.trim() || 'en-CA';
+      const diagnostic = document.getElementById('editReqDiagnostic').value.trim();
+      const full_summary = document.getElementById('editReqFullSummary').value.trim();
+      const requiresAction = document.getElementById('editReqRequiresAction').value === 'true';
+      const customerConsent = document.getElementById('editReqCustomerConsent').value === 'true';
+      const stepsRaw = document.getElementById('editReqSteps').value.trim();
+      const safetyRaw = document.getElementById('editReqSafetyTips').value.trim();
+
+      if (!title || !diagnostic) {
+        alert("Title and Diagnostic finding are required.");
+        return;
+      }
+
+      req.title = title;
+      req.category = category;
+      req.diy_status = diy_status;
+      req.language_code = language_code;
+      req.diagnostic = diagnostic;
+      req.full_summary = full_summary;
+      req.requiresAction = requiresAction;
+      req.customerConsent = customerConsent;
+      req.steps = stepsRaw ? stepsRaw.split('\n').map(s => s.trim()).filter(Boolean) : [];
+      req.safetyTips = safetyRaw ? safetyRaw.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+      this.saveState();
+      this.closeModalForce();
+      this.renderCurrentView();
+      alert(`Repair request "${title}" (${requestId}) updated successfully.`);
+    }
+
+    deleteRepairRequest(requestId) {
+      if (!confirm(`Are you sure you want to delete repair request "${requestId}"?`)) return;
+      const idx = (this.state.db.dealer.repairRequests || []).findIndex(r => r.id === requestId);
+      if (idx !== -1) {
+        this.state.db.dealer.repairRequests.splice(idx, 1);
+        this.saveState();
+        this.renderCurrentView();
+        alert(`Repair request "${requestId}" deleted successfully.`);
+      }
+    }
+
+    openAddRepairRequestModal() {
+      const title = "Add New Damage Repair Request";
+      const nextId = `REQ-${4000 + (this.state.db.dealer.repairRequests || []).length + 1}`;
+
+      const body = `
+        <form id="addRepairRequestForm" onsubmit="event.preventDefault(); window.BotNBoltApp.saveNewRepairRequest();">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Request ID *</label>
+              <input type="text" id="newReqId" class="form-control" value="${nextId}" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Language Code *</label>
+              <input type="text" id="newReqLang" class="form-control" value="en-CA" placeholder="e.g. en-CA" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Request Title *</label>
+            <input type="text" id="newReqTitle" class="form-control" placeholder="e.g. Drywall Corner Flex Crack" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Category *</label>
+              <input type="text" id="newReqCategory" class="form-control" placeholder="e.g. Drywall & Plaster" value="Drywall & Plaster" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">DIY Status *</label>
+              <select id="newReqDiyStatus" class="form-control" required>
+                <option value="Recommended DIY">Recommended DIY</option>
+                <option value="Moderate DIY">Moderate DIY</option>
+                <option value="Assisted DIY">Assisted DIY</option>
+                <option value="Professional Required">Professional Required</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Diagnostic Finding *</label>
+            <textarea id="newReqDiagnostic" class="form-control" rows="2" placeholder="Describe the AI diagnostic analysis..." required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Full Summary Description</label>
+            <textarea id="newReqFullSummary" class="form-control" rows="3" placeholder="Detailed damage context and scope..."></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Requires Action?</label>
+              <select id="newReqRequiresAction" class="form-control">
+                <option value="true">Yes (Requires Action)</option>
+                <option value="false">No (Ready)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Customer Consent</label>
+              <select id="newReqCustomerConsent" class="form-control">
+                <option value="true">Granted</option>
+                <option value="false">Pending</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Repair Steps (One per line)</label>
+            <textarea id="newReqSteps" class="form-control" rows="3" placeholder="Step 1: Clean surface&#10;Step 2: Apply compound&#10;Step 3: Sand smooth"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Safety Tips (One per line)</label>
+            <textarea id="newReqSafetyTips" class="form-control" rows="2" placeholder="Wear N95 dust mask&#10;Use eye protection"></textarea>
+          </div>
+        </form>
+      `;
+
+      const footer = `
+        <button class="btn btn-secondary" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
+        <button class="btn btn-primary" onclick="window.BotNBoltApp.saveNewRepairRequest()">Create Request</button>
+      `;
+
+      const modalWindow = document.querySelector('.modal-window');
+      if (modalWindow) {
+        modalWindow.style.maxWidth = '680px';
+      }
+
+      this.showModal(title, body, footer);
+      lucide.createIcons();
+    }
+
+    saveNewRepairRequest() {
+      const id = document.getElementById('newReqId').value.trim();
+      const title = document.getElementById('newReqTitle').value.trim();
+      const category = document.getElementById('newReqCategory').value.trim();
+      const diy_status = document.getElementById('newReqDiyStatus').value;
+      const language_code = document.getElementById('newReqLang').value.trim() || 'en-CA';
+      const diagnostic = document.getElementById('newReqDiagnostic').value.trim();
+      const full_summary = document.getElementById('newReqFullSummary').value.trim();
+      const requiresAction = document.getElementById('newReqRequiresAction').value === 'true';
+      const customerConsent = document.getElementById('newReqCustomerConsent').value === 'true';
+      const stepsRaw = document.getElementById('newReqSteps').value.trim();
+      const safetyRaw = document.getElementById('newReqSafetyTips').value.trim();
+
+      if (!id || !title || !diagnostic) {
+        alert("Please fill in Request ID, Title, and Diagnostic finding.");
+        return;
+      }
+
+      const steps = stepsRaw ? stepsRaw.split('\n').map(s => s.trim()).filter(Boolean) : ["Inspect damage area and prepare repair tools."];
+      const safetyTips = safetyRaw ? safetyRaw.split('\n').map(s => s.trim()).filter(Boolean) : ["Wear safety glasses and work gloves."];
+
+      const newRequest = {
+        id,
+        title,
+        category: category || 'General',
+        diy_status,
+        language_code,
+        diagnostic,
+        full_summary,
+        requiresAction,
+        customerConsent,
+        steps,
+        safetyTips,
+        stepProducts: {
+          1: [{ id: "PRD-GEN-01", name: "Standard Repair Material", sku: "GEN-REP-01", price: "$15.00", qty: 1 }]
+        },
+        backendProducts: [
+          { id: "PRD-GEN-01", name: "Standard Repair Material", price: "$15.00", vendor: "Authorized Supplier" }
+        ],
+        stepIntents: {
+          1: ["Surface Preparation", "Material Application"]
+        },
+        status: requiresAction ? "New" : "Inspected",
+        customerName: "Walk-in Customer",
+        date: new Date().toISOString().slice(0, 10) + " 10:00 AM",
+        estimatedCost: 25.00,
+        image: "damage_scan"
+      };
+
+      if (!this.state.db.dealer.repairRequests) {
+        this.state.db.dealer.repairRequests = [];
+      }
+      this.state.db.dealer.repairRequests.unshift(newRequest);
+      this.saveState();
+      this.closeModalForce();
+      this.renderCurrentView();
+      alert(`Repair request "${title}" (${id}) created successfully.`);
     }
 
     // ----------------------------------------------------
@@ -8397,9 +9410,20 @@
     }
 
     exportRequestsDlrCsv(tableKey) {
-      const headers = ["Request ID", "Customer Name", "Damage Image Ref", "Repair Category", "Cost Estimate", "Material SKU", "Received Date", "Status"];
-      const rows = this.state.db.dealer.repairRequests.map(req => [
-        req.id, req.customerName, req.image, req.repairType, req.estimatedCost, req.suggestedMaterials.join('; '), req.date, req.status
+      const headers = ["Request ID", "Title", "Category", "DIY Status", "Language", "Requires Action", "Customer Consent", "Diagnostic", "Full Summary", "Steps Count", "Safety Tips Count", "Status"];
+      const rows = ((this.state.db && this.state.db.dealer && this.state.db.dealer.repairRequests) || []).map(req => [
+        req.id,
+        req.title || 'Untitled',
+        req.category || 'General',
+        req.diy_status || 'DIY',
+        req.language_code || 'en-CA',
+        req.requiresAction ? 'Yes' : 'No',
+        req.customerConsent ? 'Granted' : 'Pending',
+        req.diagnostic || '',
+        req.full_summary || '',
+        (req.steps || []).length,
+        (req.safetyTips || []).length,
+        req.status || 'New'
       ]);
       this.exportToCsv("Dealer_Repair_Requests.csv", headers, rows);
     }
@@ -8413,11 +9437,24 @@
     }
 
     exportMaterialsDlrCsv(tableKey) {
-      const headers = ["Material Name", "SKU Number", "Stock Availability", "Unit Cost", "Frequently Purchased"];
-      const rows = this.state.db.dealer.materialRecommendations.map(mat => [
-        mat.name, mat.sku, mat.stock, `$${mat.cost.toFixed(2)}`, mat.frequentlyPurchased ? 'Popular' : 'Standard'
-      ]);
-      this.exportToCsv("Dealer_Materials.csv", headers, rows);
+      const headers = ["Product ID", "Product Title", "Description", "Vendor", "Category", "Currency", "Variants Count", "In Stock Variants", "Variant Details"];
+      const rows = ((this.state.db && this.state.db.dealer && this.state.db.dealer.materialRecommendations) || []).map(prod => {
+        const variants = prod.variants || [];
+        const inStock = variants.filter(v => v.available).length;
+        const variantSummary = variants.map(v => `${v.id}: ${v.title} (${v.price}, ${v.available ? 'In Stock' : 'Out of Stock'}, Qty: ${v.quantity || 0})`).join(" | ");
+        return [
+          prod.id || prod.sku,
+          prod.title || prod.name,
+          prod.description || '',
+          prod.vendor || '',
+          prod.category || '',
+          prod.currency || 'CAD',
+          variants.length,
+          inStock,
+          variantSummary
+        ];
+      });
+      this.exportToCsv("Dealer_Material_Products.csv", headers, rows);
     }
 
     exportAiErrorsCsv(tableKey) {

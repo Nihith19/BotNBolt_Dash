@@ -248,67 +248,525 @@ window.BotNBoltMockData = {
     repairRequests: [
       {
         id: "REQ-4001",
+        title: "Drywall Joint & Corner Crack Repair",
+        full_summary: "High-stress hairline fracture along master hallway corner bead with slight joint compound separation. Recommended for DIY patching before paint recoating.",
+        diagnostic: "Corner bead flex crack caused by minor settling. Surface gypsum intact, drywall paper intact with 1.2mm plaster separation.",
+        category: "Drywall & Plaster",
+        diy_status: "Recommended DIY",
+        steps: [
+          "Clean surface and scrape away loose crumbling joint compound with a putty knife.",
+          "Apply self-adhesive fiberglass mesh tape over the seam fracture.",
+          "Apply first thin coat of all-purpose joint compound feathering 2 inches beyond tape.",
+          "Let dry for 4 hours, lightly sand with 220 grit, and apply second finishing coat."
+        ],
+        stepProducts: {
+          1: [
+            { id: "PRD-MSH-002", name: "Fiberglass Mesh Joint Tape", sku: "FBR-MSH-50M", price: "$8.99", qty: 1 }
+          ],
+          2: [
+            { id: "PRD-DRY-001", name: "Professional Drywall Joint Compound", sku: "USG-DRY-3.5G", price: "$14.50", qty: 1 },
+            { id: "PRD-TL-003", name: "4-Inch Flexible Putty Knife", sku: "WST-KNIFE-4IN", price: "$6.49", qty: 1 }
+          ],
+          3: [
+            { id: "PRD-SND-004", name: "Fine 220-Grit Sanding Sponge", sku: "SND-SPG-220", price: "$4.25", qty: 2 }
+          ]
+        },
+        backendProducts: [
+          { id: "PRD-DRY-001", name: "Professional Drywall Joint Compound", price: "$14.50", vendor: "USG Sheetrock" },
+          { id: "PRD-MSH-002", name: "Self-Adhesive Fiberglass Mesh Joint Tape", price: "$8.99", vendor: "Saint-Gobain ADFORS" }
+        ],
+        stepIntents: {
+          1: ["Surface Cleaning", "Debris Removal"],
+          2: ["Joint Reinforcement", "Mesh Taping"],
+          3: ["Skim Coating", "Feathering"],
+          4: ["Curing", "Precision Sanding"]
+        },
+        safetyTips: [
+          "Wear an N95 dust mask while sanding joint compound.",
+          "Ensure adequate room ventilation and eye protection."
+        ],
+        requiresAction: true,
+        customerConsent: true,
+        language_code: "en-CA",
+        status: "New",
         customerName: "Alex Mercer",
+        date: "2026-07-07 09:15 AM",
+        estimatedCost: 34.23,
         image: "drywall_crack",
         damageDesc: "Deep structural crack in home hallway drywall.",
         aiDetections: [
           { type: "Crack", confidence: 96.5, box: [15, 30, 75, 45], severity: "Medium" }
         ],
-        repairType: "AI Repair and Analysis",
-        estimatedCost: 150.00,
-        suggestedMaterials: ["Drywall Joint Compound", "Mesh Joint Tape"],
-        status: "New",
-        date: "2026-07-07 09:15 AM"
+        repairType: "Drywall & Plaster",
+        suggestedMaterials: ["Drywall Joint Compound", "Mesh Joint Tape"]
       },
       {
         id: "REQ-4002",
+        title: "Exterior Garage Wood Stud Moisture Reinforcement",
+        full_summary: "Lower exterior framing member shows seasonal moisture dampness and surface weathering near concrete anchor foundation.",
+        diagnostic: "Capillary moisture rise from slab edge causing framing discoloration without structural rot.",
+        category: "Framing & Lumber",
+        diy_status: "Moderate DIY",
+        steps: [
+          "Inspect timber moisture levels using pinless moisture meter.",
+          "Apply moisture barrier flashing tape along sill plate and concrete transition.",
+          "Install galvanized anchor bracket reinforcement bolts."
+        ],
+        stepProducts: {
+          1: [
+            { id: "PRD-MTR-011", name: "Digital Wood Moisture Meter", sku: "MTR-DIGI-01", price: "$29.99", qty: 1 }
+          ],
+          2: [
+            { id: "PRD-FLS-012", name: "Bituthene Sill Flashing Membrane", sku: "FLS-MEM-75", price: "$22.50", qty: 1 }
+          ],
+          3: [
+            { id: "PRD-ANC-013", name: "1/2-in Galvanized Anchor Bolts (Pack of 10)", sku: "BOLT-GALV-10PK", price: "$18.75", qty: 1 }
+          ]
+        },
+        backendProducts: [
+          { id: "PRD-FLS-012", name: "Bituthene Sill Flashing Membrane", price: "$22.50", vendor: "GCP Applied" },
+          { id: "PRD-ANC-013", name: "1/2-in Galvanized Anchor Bolts", price: "$18.75", vendor: "Simpson Strong-Tie" }
+        ],
+        stepIntents: {
+          1: ["Moisture Assessment", "Substrate Verification"],
+          2: ["Vapor Barrier Installation", "Perimeter Flashing"],
+          3: ["Structural Bolting", "Anchor Securing"]
+        },
+        safetyTips: [
+          "Use heavy duty work gloves when handling galvanized fasteners.",
+          "Keep work area dry during membrane application."
+        ],
+        requiresAction: false,
+        customerConsent: true,
+        language_code: "en-CA",
+        status: "Quote Sent",
         customerName: "Claire Redfield",
+        date: "2026-07-06 04:30 PM",
+        estimatedCost: 71.24,
         image: "blueprint_layout",
         damageDesc: "Double-story garage building blueprint blueprint.pdf.",
         aiDetections: [
           { type: "Blueprint", confidence: 91.2, box: [40, 20, 70, 60], severity: "Light" }
         ],
-        repairType: "Build",
-        estimatedCost: 110.00,
-        suggestedMaterials: ["Standard Stud Framing timber", "Concrete Anchor Bolts"],
-        status: "Quote Sent",
-        date: "2026-07-06 04:30 PM"
+        repairType: "Framing & Lumber",
+        suggestedMaterials: ["Standard Stud Framing timber", "Concrete Anchor Bolts"]
       },
       {
         id: "REQ-4003",
+        title: "Impact Wall Cavity & Plaster Hole Repair",
+        full_summary: "6-inch impact puncture through interior plaster lath board. Requires backing patch, plaster layer, and textured matching coat.",
+        diagnostic: "Severe through-wall puncture. Framing intact, backing support needed for rigid filler application.",
+        category: "Drywall & Plaster",
+        diy_status: "Professional Required",
+        steps: [
+          "Square off damaged cavity edges using a drywall jab saw.",
+          "Insert timber backer block secured with drywall screws.",
+          "Cut gypsum drywall plug to fit opening and screw to backer.",
+          "Apply setting-type plaster filler and mesh tape perimeter.",
+          "Feather three progressive compound coats and sand smooth."
+        ],
+        stepProducts: {
+          1: [
+            { id: "PRD-SAW-021", name: "6-inch Drywall Jab Saw", sku: "SAW-JAB-6IN", price: "$9.95", qty: 1 }
+          ],
+          2: [
+            { id: "PRD-PLS-022", name: "Durabond 90 Setting Plaster Compound", sku: "DRB-SET-90", price: "$18.50", qty: 1 },
+            { id: "PRD-SCR-023", name: "Coarse Thread Drywall Screws 1-5/8 in", sku: "SCR-DW-158", price: "$7.20", qty: 1 }
+          ]
+        },
+        backendProducts: [
+          { id: "PRD-PLS-022", name: "Durabond 90 Setting Plaster Compound", price: "$18.50", vendor: "USG Sheetrock" }
+        ],
+        stepIntents: {
+          1: ["Cavity Trimming", "Debris Clearance"],
+          2: ["Backer Installation", "Anchor Fixing"],
+          3: ["Plug Placement", "Plaster Skimming"]
+        },
+        safetyTips: [
+          "Verify electric wire and conduit clearance inside wall before sawing.",
+          "Wear protective safety goggles and dust filtration."
+        ],
+        requiresAction: true,
+        customerConsent: false,
+        language_code: "en-CA",
+        status: "Completed",
         customerName: "Bruce Wayne",
+        date: "2026-07-05 11:00 AM",
+        estimatedCost: 35.65,
         image: "plaster_damage",
         damageDesc: "Large plaster cavity in wall due to impact.",
         aiDetections: [
           { type: "Cavity", confidence: 98.1, box: [10, 50, 90, 85], severity: "Heavy" }
         ],
-        repairType: "Renovation",
-        estimatedCost: 320.00,
-        suggestedMaterials: ["Plaster Wall Filler Patch", "Putty Knife Set"],
-        status: "Completed",
-        date: "2026-07-05 11:00 AM"
+        repairType: "Drywall & Plaster",
+        suggestedMaterials: ["Plaster Wall Filler Patch", "Putty Knife Set"]
       },
       {
         id: "REQ-4004",
+        title: "Outdoor Cedar Deck Weathering & Mold Refinishing",
+        full_summary: "UV degradation and surface mold spots across 250 sq ft cedar deck planks. Surface requires chemical wash, pressure rinse, and hybrid sealant.",
+        diagnostic: "Surface fungal oxidation and lignin fiber breakdown. Wood structural density is firm with zero sub-surface rot.",
+        category: "Decking & Outdoor",
+        diy_status: "Recommended DIY",
+        steps: [
+          "Apply oxygenated deck cleaner and let dwell for 15 minutes.",
+          "Scrub surface fibers with stiff synthetic bristle brush.",
+          "Rinse thoroughly with medium pressure garden nozzle.",
+          "Allow wood to dry 48 hours to below 12% moisture.",
+          "Apply 2 coats of penetrating natural cedar exterior stain."
+        ],
+        stepProducts: {
+          1: [
+            { id: "PRD-CLN-031", name: "Bio-Clean Oxygenated Deck Wash (1 Gal)", sku: "CLN-DCK-1GAL", price: "$21.99", qty: 1 }
+          ],
+          2: [
+            { id: "PRD-STN-032", name: "Premium Natural Cedar Penetrating Stain (1 Gal)", sku: "STN-CDR-1G", price: "$44.95", qty: 2 },
+            { id: "PRD-APP-033", name: "Heavy Duty Deck Stain Applicator Pad", sku: "APP-PAD-9IN", price: "$12.50", qty: 1 }
+          ]
+        },
+        backendProducts: [
+          { id: "PRD-CLN-031", name: "Bio-Clean Oxygenated Deck Wash", price: "$21.99", vendor: "Olympic Stains" },
+          { id: "PRD-STN-032", name: "Premium Natural Cedar Penetrating Stain", price: "$44.95", vendor: "Cabot Woodcare" }
+        ],
+        stepIntents: {
+          1: ["Chemical Treatment", "Oxidation Cleansing"],
+          2: ["Mechanical Agitation", "Rinsing"],
+          3: ["Protective Sealing", "UV Weatherproofing"]
+        },
+        safetyTips: [
+          "Cover surrounding shrubs and flower beds with plastic sheeting before cleaning.",
+          "Wear non-slip footwear when washing wet decking boards."
+        ],
+        requiresAction: false,
+        customerConsent: true,
+        language_code: "en-CA",
+        status: "Inspected",
         customerName: "Selina Kyle",
+        date: "2026-07-05 02:15 PM",
+        estimatedCost: 124.39,
         image: "deck_wear",
         damageDesc: "Worn out outdoor wooden deck showing mold & crack.",
         aiDetections: [
           { type: "Wear", confidence: 85.4, box: [25, 10, 30, 15], severity: "Light" },
           { type: "Crack", confidence: 88.0, box: [65, 30, 70, 35], severity: "Light" }
         ],
-        repairType: "AI Repair and Analysis",
-        estimatedCost: 85.00,
-        suggestedMaterials: ["Premium Deck Sealer", "Sanding Grids Kit"],
-        status: "Inspected",
-        date: "2026-07-05 02:15 PM"
+        repairType: "Decking & Outdoor",
+        suggestedMaterials: ["Premium Deck Sealer", "Sanding Grids Kit"]
+      },
+      {
+        id: "REQ-4005",
+        title: "Ceramic Tile Grout Cracking & Water Seal Failure",
+        full_summary: "Bathroom shower perimeter grout micro-cracks allowing moisture seepage behind vertical corner tile row.",
+        diagnostic: "Flex fatigue in rigid cement grout at change of plane. Needs flexible silicone caulk replacement.",
+        category: "Tile & Stone",
+        diy_status: "Recommended DIY",
+        steps: [
+          "Rake out old fractured grout along corner joint to 1/4 in depth.",
+          "Clean joint with isopropyl alcohol and let completely dry.",
+          "Apply mildew-resistant 100% silicone color-matched sealant.",
+          "Tool the bead smooth with finishing tool within 5 minutes."
+        ],
+        stepProducts: {
+          1: [
+            { id: "PRD-GRT-041", name: "Carbide Grout Rake Tool", sku: "TLS-GRT-RK", price: "$8.50", qty: 1 }
+          ],
+          2: [
+            { id: "PRD-CLK-042", name: "Commercial 100% Silicone Bath Sealant", sku: "CLK-SIL-10OZ", price: "$11.25", qty: 2 }
+          ]
+        },
+        backendProducts: [
+          { id: "PRD-CLK-042", name: "Commercial 100% Silicone Bath Sealant", price: "$11.25", vendor: "GE Advanced Silicone" }
+        ],
+        stepIntents: {
+          1: ["Grout Removal", "Joint Preparation"],
+          2: ["Sanitization", "Silicone Dispensing"],
+          3: ["Bead Tooling", "Hydrophobic Curing"]
+        },
+        safetyTips: [
+          "Ensure bathroom exhaust fan is running for adequate ventilation during silicone curing.",
+          "Wear cut-resistant gloves when handling carbide rake tools."
+        ],
+        requiresAction: false,
+        customerConsent: true,
+        language_code: "en-CA",
+        status: "New",
+        customerName: "Gordon Vance",
+        date: "2026-07-08 10:40 AM",
+        estimatedCost: 31.00,
+        image: "bathroom_tile",
+        damageDesc: "Hairline grout cracking in bathroom shower perimeter.",
+        aiDetections: [
+          { type: "Crack", confidence: 94.2, box: [20, 40, 80, 50], severity: "Light" }
+        ],
+        repairType: "Tile & Stone",
+        suggestedMaterials: ["Grout Rake Tool", "Commercial Silicone Bath Sealant"]
       }
     ],
     materialRecommendations: [
-      { name: "Drywall Joint Compound", sku: "DRY-COMP-400ML", stock: "In Stock (14 items)", cost: 50.00, frequentlyPurchased: true },
-      { name: "Mesh Joint Tape", sku: "MSH-TAPE-50M", stock: "Low Stock (2 items)", cost: 30.00, frequentlyPurchased: true },
-      { name: "Standard Stud Framing timber", sku: "TIM-STUD-8FT", stock: "In Stock (22 items)", cost: 20.00, frequentlyPurchased: false },
-      { name: "Concrete Anchor Bolts", sku: "CON-ANCH-10PK", stock: "In Stock (10 items)", cost: 15.00, frequentlyPurchased: true }
+      {
+        id: "PRD-DRY-001",
+        title: "Professional Drywall Joint Compound",
+        description: "Pre-mixed vinyl-based formulation for taping, finishing, and skim coating drywall joints and repair patches.",
+        vendor: "USG Sheetrock",
+        category: "Drywall & Plaster",
+        currency: "CAD",
+        variants: [
+          {
+            id: "VAR-DRY-400ML",
+            title: "400ml Repair Tub",
+            price: "$14.50",
+            available: true,
+            quantity: 28,
+            imageSrc: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-DRY-3.5GAL",
+            title: "3.5 Gallon Pro Pail",
+            price: "$28.95",
+            available: true,
+            quantity: 14,
+            imageSrc: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-DRY-4.5GAL",
+            title: "4.5 Gallon Contractor Box",
+            price: "$34.00",
+            available: false,
+            quantity: 0,
+            imageSrc: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=300&auto=format&fit=crop&q=80"
+          }
+        ]
+      },
+      {
+        id: "PRD-MSH-002",
+        title: "Self-Adhesive Fiberglass Mesh Joint Tape",
+        description: "High tensile cross-fiberglass mesh tape for drywall crack reinforcement and seamless edge bonding.",
+        vendor: "Saint-Gobain ADFORS",
+        category: "Drywall & Plaster",
+        currency: "CAD",
+        variants: [
+          {
+            id: "VAR-MSH-50M",
+            title: "50mm x 45m Standard Roll",
+            price: "$8.99",
+            available: true,
+            quantity: 42,
+            imageSrc: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-MSH-90M",
+            title: "50mm x 90m Jumbo Roll",
+            price: "$15.49",
+            available: true,
+            quantity: 18,
+            imageSrc: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-MSH-EXT",
+            title: "100mm Exterior Heavy Duty Roll",
+            price: "$19.95",
+            available: false,
+            quantity: 0,
+            imageSrc: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=300&auto=format&fit=crop&q=80"
+          }
+        ]
+      },
+      {
+        id: "PRD-TIM-003",
+        title: "Kiln-Dried SPF Framing Lumber",
+        description: "Premium grade Spruce-Pine-Fir structural framing stud for interior wall partitions and framing rebuilds.",
+        vendor: "Canfor Lumber",
+        category: "Lumber & Framing",
+        currency: "CAD",
+        variants: [
+          {
+            id: "VAR-TIM-2X4-8FT",
+            title: "2-in x 4-in x 8-ft Stud",
+            price: "$6.85",
+            available: true,
+            quantity: 120,
+            imageSrc: "https://images.unsplash.com/photo-1546484396-fb3fc6f95f98?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-TIM-2X4-10FT",
+            title: "2-in x 4-in x 10-ft Stud",
+            price: "$9.20",
+            available: true,
+            quantity: 65,
+            imageSrc: "https://images.unsplash.com/photo-1546484396-fb3fc6f95f98?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-TIM-2X6-8FT",
+            title: "2-in x 6-in x 8-ft Stud",
+            price: "$11.50",
+            available: true,
+            quantity: 34,
+            imageSrc: "https://images.unsplash.com/photo-1546484396-fb3fc6f95f98?w=300&auto=format&fit=crop&q=80"
+          }
+        ]
+      },
+      {
+        id: "PRD-CON-004",
+        title: "Heavy-Duty Wedge Anchor Concrete Bolts",
+        description: "Zinc-plated carbon steel expansion anchors for solid concrete masonry anchoring and structural posts.",
+        vendor: "Red Head Anchors",
+        category: "Fasteners & Hardware",
+        currency: "CAD",
+        variants: [
+          {
+            id: "VAR-CON-38X3-10PK",
+            title: "3/8-in x 3-in (10 Pack)",
+            price: "$16.50",
+            available: true,
+            quantity: 25,
+            imageSrc: "https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-CON-12X4-10PK",
+            title: "1/2-in x 4-1/4-in (10 Pack)",
+            price: "$24.75",
+            available: true,
+            quantity: 15,
+            imageSrc: "https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-CON-12X5-25PK",
+            title: "1/2-in x 5-1/2-in Contractor Box (25 Pack)",
+            price: "$52.00",
+            available: false,
+            quantity: 0,
+            imageSrc: "https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?w=300&auto=format&fit=crop&q=80"
+          }
+        ]
+      },
+      {
+        id: "PRD-EPO-005",
+        title: "FlexResin High-Strength Structural Epoxy",
+        description: "Two-part industrial epoxy adhesive for bonding metal, concrete, wood, and rigid plastics with 3500 PSI shear strength.",
+        vendor: "Gorilla Pro Grade",
+        category: "Adhesives & Sealants",
+        currency: "CAD",
+        variants: [
+          {
+            id: "VAR-EPO-25ML",
+            title: "25ml Dual Syringe",
+            price: "$9.49",
+            available: true,
+            quantity: 38,
+            imageSrc: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-EPO-400ML",
+            title: "400ml Dual Cartridge Gun Pack",
+            price: "$39.99",
+            available: true,
+            quantity: 12,
+            imageSrc: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300&auto=format&fit=crop&q=80"
+          }
+        ]
+      },
+      {
+        id: "PRD-SEA-006",
+        title: "Premium Acrylic Exterior Deck & Wood Sealer",
+        description: "UV-resistant waterproofing stain and sealer designed for weathered deck restoration and moisture barriers.",
+        vendor: "Behr Premium",
+        category: "Paints & Finishes",
+        currency: "CAD",
+        variants: [
+          {
+            id: "VAR-SEA-1GAL-NAT",
+            title: "1 Gallon - Natural Cedar",
+            price: "$48.95",
+            available: true,
+            quantity: 19,
+            imageSrc: "https://images.unsplash.com/photo-1563089145-599997674d42?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-SEA-1GAL-CLR",
+            title: "1 Gallon - Ultra Clear Gloss",
+            price: "$46.50",
+            available: true,
+            quantity: 8,
+            imageSrc: "https://images.unsplash.com/photo-1563089145-599997674d42?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-SEA-5GAL-NAT",
+            title: "5 Gallon Contractor Pail - Natural",
+            price: "$215.00",
+            available: false,
+            quantity: 0,
+            imageSrc: "https://images.unsplash.com/photo-1563089145-599997674d42?w=300&auto=format&fit=crop&q=80"
+          }
+        ]
+      },
+      {
+        id: "PRD-SND-007",
+        title: "Dust-Free Mesh Sanding Discs & Grids Kit",
+        description: "Clog-resistant ceramic grit sanding screens with universal hook & loop vacuum attachment.",
+        vendor: "Mirka Abranet",
+        category: "Tools & Abrasives",
+        currency: "CAD",
+        variants: [
+          {
+            id: "VAR-SND-80G-10PK",
+            title: "5-in 80 Grit Coarse (10 Pack)",
+            price: "$13.25",
+            available: true,
+            quantity: 32,
+            imageSrc: "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-SND-120G-10PK",
+            title: "5-in 120 Grit Medium (10 Pack)",
+            price: "$13.25",
+            available: true,
+            quantity: 26,
+            imageSrc: "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-SND-240G-10PK",
+            title: "5-in 240 Grit Fine Finishing (10 Pack)",
+            price: "$14.50",
+            available: true,
+            quantity: 15,
+            imageSrc: "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=300&auto=format&fit=crop&q=80"
+          }
+        ]
+      },
+      {
+        id: "PRD-KNF-008",
+        title: "Stainless Steel Flexible Putty & Taping Knife Set",
+        description: "Ergonomic soft-grip drywall taping knives engineered for precise mud spreading and patch smoothing.",
+        vendor: "Warner Tool",
+        category: "Tools & Abrasives",
+        currency: "CAD",
+        variants: [
+          {
+            id: "VAR-KNF-3IN",
+            title: "3-inch Flex Putty Knife",
+            price: "$9.80",
+            available: true,
+            quantity: 22,
+            imageSrc: "https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-KNF-6IN",
+            title: "6-inch Joint Knife",
+            price: "$12.40",
+            available: true,
+            quantity: 19,
+            imageSrc: "https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=300&auto=format&fit=crop&q=80"
+          },
+          {
+            id: "VAR-KNF-3PC-SET",
+            title: "3-Piece Pro Set (3\", 6\", 10\")",
+            price: "$29.99",
+            available: true,
+            quantity: 11,
+            imageSrc: "https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=300&auto=format&fit=crop&q=80"
+          }
+        ]
+      }
     ],
     customerLeads: [
       { name: "John Doe", phone: "+1 (416) 555-7788", email: "j.doe@example.com", repairType: "Drywall Crack", interestedProducts: "Drywall Joint Compound", location: "East York, Toronto", leadStatus: "New" },
