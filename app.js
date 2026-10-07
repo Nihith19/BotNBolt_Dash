@@ -6,6 +6,7 @@
     overview: 'layout-dashboard',
     companies: 'building-2',
     dealers: 'users',
+    stores: 'store',
     ai_analytics: 'cpu',
     repair_analytics: 'activity',
     billing: 'credit-card',
@@ -14,8 +15,7 @@
     insights: 'bar-chart-3',
     materials: 'wrench',
     requests: 'camera',
-    leads: 'contact',
-    profile: 'user-cog',
+    profile: 'plus-circle',
     ai_errors: 'alert-triangle',
     monitoring: 'heart-pulse',
     infrastructure: 'server',
@@ -34,8 +34,9 @@
   // Nav labels
   const navLabels = {
     overview: 'Overview',
-    companies: 'Tenants',
-    dealers: 'Dealers',
+    companies: 'Dealers',
+    dealers: 'Stores',
+    stores: 'Store List',
     ai_analytics: 'AI Repair Analytics',
     repair_analytics: 'Repair Analytics',
     billing: 'Billing & Subscriptions',
@@ -44,8 +45,7 @@
     insights: 'Customer Insights',
     materials: 'Materials Database',
     requests: 'Repair Requests (AI)',
-    leads: 'Customer CRM Leads',
-    profile: 'Dealer Profile',
+    profile: 'Add Store Profile',
     ai_errors: 'AI Error Reports',
     monitoring: 'Live Monitoring',
     infrastructure: 'Infrastructure',
@@ -53,19 +53,19 @@
     revenue: 'Revenue Overview',
     ai_cost: 'AI Cost Breakdown',
     model_performance: 'Model Performance',
-    company_detail: 'Tenant Detail',
-    dealer_detail: 'Dealer Detail',
+    company_detail: 'Dealer Detail',
+    dealer_detail: 'Store Detail',
     ticket_detail: 'Ticket Details',
     users: 'Users & Requests',
     settings: 'AI Config & Billing',
-    aws_billing: 'Tenant AWS Usage & Billing'
+    aws_billing: 'Dealer AWS Usage & Billing'
   };
 
   // Profiles mapping by role
   const roleProfiles = {
     superAdmin: { name: 'Nihit Sharma', avatar: 'SA', label: 'Super Admin' },
-    companyAdmin: { name: 'Apex HQ Manager', avatar: 'HQ', label: 'Tenant Admin (Apex)' },
-    dealer: { name: 'Apex Toronto Staff', avatar: 'DL', label: 'Dealer Manager' },
+    dealer: { name: 'Marcus Vance', avatar: 'DL', label: 'Dealer Portal' },
+    tenant: { name: 'Marcus Vance', avatar: 'DL', label: 'Dealer Portal' },
     supportAdmin: { name: 'Sarah Connor', avatar: 'SP', label: 'Support Lead' }
   };
 
@@ -91,7 +91,7 @@
     }
 
     init() {
-      const SCHEMA_VERSION = '2026_10_06_v6';
+      const SCHEMA_VERSION = '2026_10_07_v2';
       if (localStorage.getItem('botnbolt_schema_version') !== SCHEMA_VERSION) {
         localStorage.removeItem('botnbolt_state');
         localStorage.setItem('botnbolt_schema_version', SCHEMA_VERSION);
@@ -288,7 +288,7 @@
           this.state.db.companyAdmin.companyName = companies[0].name;
           this.saveState();
         }
-      } else if (this.state.activeRole === 'dealer') {
+      } else if (this.state.activeRole === 'dealer' || this.state.activeRole === 'tenant') {
         const companies = this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === categoryName);
         if (companies.length > 0) {
           const dealers = this.state.db.superAdmin.dealers.filter(d => d.company === companies[0].name);
@@ -318,7 +318,7 @@
         const companyName = this.getFilteredCompanyAdmin().companyName;
         titleScope = `${companyName} Brand Customer Activity`;
         requests = requests.filter(r => r.company === companyName);
-      } else if (role === 'dealer') {
+      } else if (role === 'dealer' || role === 'tenant') {
         const dealerName = this.getFilteredDealer().storeName;
         const companyName = this.getFilteredCompanyAdmin().companyName;
         titleScope = `${dealerName} Store Customer Activity`;
@@ -697,12 +697,12 @@
                 </div>
 
                 <div style="margin-bottom:16px;">
-                  <label class="form-label" style="font-weight:600; font-size:0.8rem; margin-bottom:6px; display:block;">Tenant Custom Instructions</label>
+                  <label class="form-label" style="font-weight:600; font-size:0.8rem; margin-bottom:6px; display:block;">Dealer Custom Instructions</label>
                   <textarea class="form-control" id="companyPrompt" rows="3" placeholder="Append brand specific guidelines (e.g. prioritize HH house brand resins)..." style="font-size:0.8rem; line-height:1.4; resize:none;" oninput="window.BotNBoltApp.updateCompanyToggle('prompt', this.value)">${config.companyToggles["Home hardware"].prompt || ''}</textarea>
                 </div>
               ` : ''}
 
-              ${role === 'dealer' ? `
+              ${(role === 'dealer' || role === 'tenant') ? `
                 <div style="margin-bottom:16px;">
                   <h4 style="font-size:0.85rem; font-weight:700; margin-bottom:12px;">Store Terminal Operations</h4>
                   
@@ -1019,7 +1019,6 @@
         }),
         materialRecommendations: this.state.db.dealer.materialRecommendations || [],
         materials: this.state.db.dealer.materials || [],
-        leads: this.state.db.dealer.leads || [],
         profile: {
           storeName: activeDealer,
           address: (matchedDealerData.location || "1050 Danforth Ave") + ", " + activeCity + ", " + (matchedDealerData.province || "Ontario"),
@@ -1083,6 +1082,9 @@
     }
 
     switchRole(role) {
+      if (!roleProfiles[role] || role === 'companyAdmin') {
+        role = 'superAdmin';
+      }
       this.state.activeRole = role;
       this.state.activeMenu = 'overview';
 
@@ -1109,8 +1111,8 @@
         items = ['overview', 'aws_billing', 'companies', 'dealers', 'users', 'ai_cost', 'model_performance', 'infrastructure', 'system_errors', 'tickets', 'permissions'];
       } else if (this.state.activeRole === 'companyAdmin') {
         items = ['overview', 'dealers', 'repair_analytics', 'insights', 'billing', 'materials', 'users', 'tickets'];
-      } else if (this.state.activeRole === 'dealer') {
-        items = ['overview', 'requests', 'materials', 'leads', 'users', 'tickets', 'profile'];
+      } else if (this.state.activeRole === 'dealer' || this.state.activeRole === 'tenant') {
+        items = ['overview', 'stores', 'requests', 'materials', 'users', 'tickets', 'profile'];
       } else if (this.state.activeRole === 'supportAdmin') {
         items = ['overview', 'tickets', 'companies', 'dealers', 'users', 'ai_errors', 'monitoring'];
       }
@@ -1215,8 +1217,8 @@
       }
 
       if (menu === 'aws_billing') {
-        document.getElementById('pageTitle').innerText = `Tenant AWS Usage & Billing`;
-        document.getElementById('pageSubtitle').innerText = `Monitor tenant AWS usage, infrastructure costs, cost allocation, billing insights, and profitability across all enterprise customers.`;
+        document.getElementById('pageTitle').innerText = `Dealer AWS Usage & Billing`;
+        document.getElementById('pageSubtitle').innerText = `Monitor dealer AWS usage, infrastructure costs, cost allocation, billing insights, and profitability across all enterprise customers.`;
         this.renderTenantAwsUsageBillingView(canvas);
         lucide.createIcons();
         return;
@@ -1238,7 +1240,7 @@
         this.renderSuperAdminView(canvas, menu);
       } else if (role === 'companyAdmin') {
         this.renderCompanyAdminView(canvas, menu);
-      } else if (role === 'dealer') {
+      } else if (role === 'dealer' || role === 'tenant') {
         this.renderDealerView(canvas, menu);
       } else if (role === 'supportAdmin') {
         this.renderSupportAdminView(canvas, menu);
@@ -1523,7 +1525,7 @@
             <!-- Active Companies → navigate to companies -->
             <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.navigate('companies')" style="padding: 16px; border-left: 4px solid var(--primary); display:flex; justify-content:space-between; align-items:center; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(37, 99, 235, 0.05) 100%); cursor:pointer; transition: transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 24px rgba(37,99,235,0.15)'" onmouseleave="this.style.transform=''; this.style.boxShadow=''">
               <div>
-                <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Active Tenants</div>
+                <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Active Dealers</div>
                 <strong style="font-size:1.4rem; color:var(--text-primary); font-family:var(--font-family);">${db.kpis.totalCompanies.value}</strong>
               </div>
               <div style="display:flex; flex-direction:column; align-items:flex-end;">
@@ -1535,7 +1537,7 @@
             <!-- Total Dealers → navigate to dealers -->
             <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.navigate('dealers')" style="padding: 16px; border-left: 4px solid var(--success); display:flex; justify-content:space-between; align-items:center; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(16, 185, 129, 0.05) 100%); cursor:pointer; transition: transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 24px rgba(16,185,129,0.15)'" onmouseleave="this.style.transform=''; this.style.boxShadow=''">
               <div>
-                <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Total Dealers</div>
+                <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Total Stores</div>
                 <strong style="font-size:1.4rem; color:var(--text-primary); font-family:var(--font-family);">${db.kpis.totalDealers.value}</strong>
               </div>
               <div style="display:flex; flex-direction:column; align-items:flex-end;">
@@ -1707,7 +1709,7 @@
               <!-- Circular Progress 2: Company Health Status -->
               <div class="card" style="text-align:center; padding:20px;">
                 <div class="card-header" style="justify-content:center; padding:0 0 12px 0; border-bottom:1px solid var(--border-color); margin-bottom:16px;">
-                  <span class="card-title">Tenant Health Status</span>
+                  <span class="card-title">Dealer Health Status</span>
                 </div>
                 <div style="position:relative; width:130px; height:130px; margin:16px auto;">
                   <svg width="130" height="130" viewBox="0 0 120 120">
@@ -1720,7 +1722,7 @@
                     <div style="font-size:0.65rem; color:var(--text-secondary);">Active</div>
                   </div>
                 </div>
-                <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:12px;">5 active tenants / 34 active dealer outlets running healthy. 2 offline.</p>
+                <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:12px;">5 active dealers / 34 active store outlets running healthy. 2 offline.</p>
               </div>
 
               <!-- Doughnut Chart: Categories Distribution -->
@@ -1951,7 +1953,7 @@
           <!-- Companies Analytics Header -->
           <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-bottom:24px;">
             <div class="card" style="padding:20px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.07) 100%);">
-              <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:6px;">Total Tenants</div>
+              <div style="font-size:0.72rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:6px;">Total Dealers</div>
               <strong style="font-size:1.8rem; color:var(--text-primary);">${db.companies.length}</strong>
               <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">Registered in platform</div>
             </div>
@@ -1985,7 +1987,7 @@
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.7rem;">
                     <div style="background:var(--bg-primary);padding:6px 8px;border-radius:6px;text-align:center;">
                       <div style="font-weight:700;color:var(--text-primary);">${activeDealers}/${co.totalDealers}</div>
-                      <div style="color:var(--text-secondary);">Dealers</div>
+                      <div style="color:var(--text-secondary);">Stores</div>
                     </div>
                     <div style="background:var(--bg-primary);padding:6px 8px;border-radius:6px;text-align:center;">
                       <div style="font-weight:700;color:var(--text-primary);">${totalScans}</div>
@@ -1993,7 +1995,7 @@
                     </div>
                   </div>
                   <div style="font-size:0.68rem;color:var(--text-secondary);margin-top:8px;">Expires: ${co.expiryDate}</div>
-                  <div style="margin-top:10px;font-size:0.72rem;font-weight:700;color:${statusColor};display:flex;align-items:center;gap:4px;">View Dealers <span>→</span></div>
+                  <div style="margin-top:10px;font-size:0.72rem;font-weight:700;color:${statusColor};display:flex;align-items:center;gap:4px;">View Stores <span>→</span></div>
                 </div>
               `;
         }).join('')}
@@ -2002,9 +2004,9 @@
           <!-- Companies Listing Table -->
           <div class="card">
             <div class="card-header">
-              <span class="card-title">Registered Tenants</span>
+              <span class="card-title">Registered Dealers</span>
               <button class="btn btn-primary btn-sm flex-center" onclick="window.BotNBoltApp.openAddCompanyModal()">
-                <i data-lucide="plus-circle"></i> Add Tenant
+                <i data-lucide="plus-circle"></i> Add Dealer
               </button>
             </div>
             
@@ -2013,7 +2015,7 @@
               <div class="table-actions-left" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
                 <div class="search-wrapper">
                   <i data-lucide="search"></i>
-                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search tenants..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
+                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search dealers..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
                 </div>
 
                 <!-- Industry Filter -->
@@ -2064,11 +2066,11 @@
                     <th style="width: 40px; padding-left: 24px;">
                       <input type="checkbox" id="chk-all-${tableKey}" style="width:16px; height:16px; cursor:pointer;" ${checked.length === allRowIds.length && allRowIds.length > 0 ? 'checked' : ''} onchange="window.BotNBoltApp.handleSelectAllChange('${tableKey}', this.checked, ${JSON.stringify(allRowIds).replace(/"/g, '&quot;')})">
                     </th>
-                    <th>Tenant Name</th>
+                    <th>Dealer Name</th>
                     <th>ID</th>
                     <th>Industry</th>
                     <th>Plan</th>
-                    <th>Locations</th>
+                    <th>Stores</th>
                     <th>Contract Expiry</th>
                     <th>Branding</th>
                     <th>Status</th>
@@ -2097,7 +2099,7 @@
                       <td><code>${co.id}</code></td>
                       <td>${co.industryType}</td>
                       <td><span class="badge badge-info">${co.subscriptionPlan}</span></td>
-                      <td>${co.totalDealers} Dealers</td>
+                      <td>${co.totalDealers} Stores</td>
                       <td>${co.expiryDate}</td>
                       <td>
                         <div style="display: flex; gap: 4px;">
@@ -2108,11 +2110,11 @@
                       <td><span class="badge ${co.status === 'Active' ? 'badge-success' : co.status === 'Suspended' ? 'badge-danger' : 'badge-warning'}">${co.status}</span></td>
                       <td>
                         <div class="table-actions">
-                          <button class="action-icon-btn" onclick="window.BotNBoltApp.editCompany('${co.id}')" title="Edit Tenant Details"><i data-lucide="edit-3"></i></button>
-                          <button class="action-icon-btn" onclick="window.BotNBoltApp.toggleCompanyStatus('${co.id}')" title="${co.status === 'Active' ? 'Suspend' : 'Activate'} Tenant"><i data-lucide="${co.status === 'Active' ? 'slash' : 'play'}"></i></button>
+                          <button class="action-icon-btn" onclick="window.BotNBoltApp.editCompany('${co.id}')" title="Edit Dealer Details"><i data-lucide="edit-3"></i></button>
+                          <button class="action-icon-btn" onclick="window.BotNBoltApp.toggleCompanyStatus('${co.id}')" title="${co.status === 'Active' ? 'Suspend' : 'Activate'} Dealer"><i data-lucide="${co.status === 'Active' ? 'slash' : 'play'}"></i></button>
                           <button class="action-icon-btn" onclick="window.BotNBoltApp.manageSubscriptionModal('${co.id}')" title="Manage subscription & limits"><i data-lucide="sliders"></i></button>
                           <button class="action-icon-btn" onclick="window.BotNBoltApp.resetCompanyPassword('${co.id}')" title="Reset Admin Password"><i data-lucide="key-round"></i></button>
-                          <button class="action-icon-btn" onclick="window.BotNBoltApp.navigateToCompany('${co.id}')" title="View Dealers"><i data-lucide="users-2"></i></button>
+                          <button class="action-icon-btn" onclick="window.BotNBoltApp.navigateToCompany('${co.id}')" title="View Stores"><i data-lucide="users-2"></i></button>
                           <button class="action-icon-btn" onclick="window.BotNBoltApp.navigateToCompany('${co.id}')" title="View Analytics"><i data-lucide="bar-chart-3"></i></button>
                         </div>
                       </td>
@@ -2127,7 +2129,7 @@
               <div>
                 Showing <strong>${filtered.length === 0 ? 0 : pageIndex * pageSize + 1}</strong> to 
                 <strong>${Math.min((pageIndex + 1) * pageSize, filtered.length)}</strong> of 
-                <strong>${filtered.length}</strong> companies
+                <strong>${filtered.length}</strong> dealers
               </div>
               <div class="pagination-controls">
                 <span style="margin-right:8px;">Rows per page:</span>
@@ -2266,19 +2268,19 @@
 
           <!-- Dealers Listing Table -->
           <div class="card">
-            <div class="card-header"><span class="card-title">All System Dealers Across Companies</span></div>
+            <div class="card-header"><span class="card-title">All System Stores Across Dealers</span></div>
             
             <!-- Table Header Action Controls -->
             <div class="table-header-actions" style="padding: 0 24px; margin-top: 10px;">
               <div class="table-actions-left" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
                 <div class="search-wrapper">
                   <i data-lucide="search"></i>
-                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search dealers..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
+                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search stores..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
                 </div>
 
                 <!-- Company Filter -->
                 <select class="form-control dropdown-filter" style="width: 140px; font-size: 0.85rem; padding: 4px 8px; height: 32px;" onchange="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'company', this.value)">
-                  <option value="">All Tenants</option>
+                  <option value="">All Dealers</option>
                   <option value="Home hardware" ${filterCompany === 'Home hardware' ? 'selected' : ''}>Home hardware</option>
                   <option value="BMR Group" ${filterCompany === 'BMR Group' ? 'selected' : ''}>BMR Group</option>
                 </select>
@@ -2336,8 +2338,8 @@
                     <th style="width: 40px; padding-left: 24px;">
                       <input type="checkbox" id="chk-all-${tableKey}" style="width:16px; height:16px; cursor:pointer;" ${checked.length === allRowIds.length && allRowIds.length > 0 ? 'checked' : ''} onchange="window.BotNBoltApp.handleSelectAllChange('${tableKey}', this.checked, ${JSON.stringify(allRowIds).replace(/"/g, '&quot;')})">
                     </th>
-                    <th>Dealer Name</th>
-                    <th>Tenant</th>
+                    <th>Store Name</th>
+                    <th>Dealer</th>
                     <th>City</th>
                     <th>Province</th>
                     <th>Manager</th>
@@ -2367,9 +2369,9 @@
                       <td><span class="badge ${dl.status === 'Active' ? 'badge-success' : 'badge-danger'}">${dl.status}</span></td>
                       <td>
                         <div class="table-actions">
-                          <button class="action-icon-btn" onclick="window.BotNBoltApp.toggleDealerStatus('${dl.id}')" title="${dl.status === 'Active' ? 'Deactivate' : 'Activate'} Dealer"><i data-lucide="${dl.status === 'Active' ? 'slash' : 'play'}"></i></button>
+                          <button class="action-icon-btn" onclick="window.BotNBoltApp.toggleDealerStatus('${dl.id}')" title="${dl.status === 'Active' ? 'Deactivate' : 'Activate'} Store"><i data-lucide="${dl.status === 'Active' ? 'slash' : 'play'}"></i></button>
                           <button class="action-icon-btn" onclick="window.BotNBoltApp.assignDealerAdmin('${dl.id}')" title="Assign Admin"><i data-lucide="user-plus"></i></button>
-                          <button class="action-icon-btn" onclick="window.BotNBoltApp.navigate('ai_analytics')" title="View Dealer Analytics"><i data-lucide="bar-chart-3"></i></button>
+                          <button class="action-icon-btn" onclick="window.BotNBoltApp.navigate('ai_analytics')" title="View Store Analytics"><i data-lucide="bar-chart-3"></i></button>
                           <button class="action-icon-btn" onclick="window.BotNBoltApp.editDealerPermissions('${dl.id}')" title="Edit Permissions"><i data-lucide="key"></i></button>
                         </div>
                       </td>
@@ -2384,7 +2386,7 @@
               <div>
                 Showing <strong>${filtered.length === 0 ? 0 : pageIndex * pageSize + 1}</strong> to 
                 <strong>${Math.min((pageIndex + 1) * pageSize, filtered.length)}</strong> of 
-                <strong>${filtered.length}</strong> dealers
+                <strong>${filtered.length}</strong> stores
               </div>
               <div class="pagination-controls">
                 <span style="margin-right:8px;">Rows per page:</span>
@@ -2824,15 +2826,6 @@
                     <td><input type="checkbox" style="width:16px; height:16px;"></td>
                   </tr>
                   <tr>
-                    <td><strong>Company Admin (HQ)</strong></td>
-                    <td><input type="checkbox" checked style="width:16px; height:16px;"></td>
-                    <td><input type="checkbox" checked style="width:16px; height:16px;"></td>
-                    <td><input type="checkbox" style="width:16px; height:16px;"></td>
-                    <td><input type="checkbox" checked style="width:16px; height:16px;"></td>
-                    <td><input type="checkbox" checked style="width:16px; height:16px;"></td>
-                    <td><input type="checkbox" style="width:16px; height:16px;"></td>
-                  </tr>
-                  <tr>
                     <td><strong>Dealer Manager</strong></td>
                     <td><input type="checkbox" checked style="width:16px; height:16px;"></td>
                     <td><input type="checkbox" checked style="width:16px; height:16px;"></td>
@@ -2842,7 +2835,7 @@
                     <td><input type="checkbox" style="width:16px; height:16px;"></td>
                   </tr>
                   <tr>
-                    <td><strong>Dealer Staff</strong></td>
+                    <td><strong>Store Staff</strong></td>
                     <td><input type="checkbox" checked style="width:16px; height:16px;"></td>
                     <td><input type="checkbox" style="width:16px; height:16px;"></td>
                     <td><input type="checkbox" style="width:16px; height:16px;"></td>
@@ -3157,7 +3150,7 @@
             <div class="table-responsive">
               <table class="data-table">
                 <thead><tr>
-                  <th>Tenant</th><th>Plan</th><th>Dealers</th><th>Monthly Fee</th>
+                  <th>Dealer</th><th>Plan</th><th>Stores</th><th>Monthly Fee</th>
                   <th>API Usage Charges</th><th>Total MRR</th><th>Payment Status</th><th>Renewal</th>
                 </tr></thead>
                 <tbody>
@@ -3269,10 +3262,10 @@
           <!-- AI Cost by Company + Optimisation Recommendations -->
           <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:24px; margin-bottom:24px;">
             <div class="card">
-              <div class="card-header"><span class="card-title">AI Cost Breakdown by Tenant</span></div>
+              <div class="card-header"><span class="card-title">AI Cost Breakdown by Dealer</span></div>
               <div class="table-responsive">
                 <table class="data-table">
-                  <thead><tr><th>Tenant</th><th>Inferences</th><th>AI Cost</th><th>Cost/Inference</th><th>% of Total</th></tr></thead>
+                  <thead><tr><th>Dealer</th><th>Inferences</th><th>AI Cost</th><th>Cost/Inference</th><th>% of Total</th></tr></thead>
                   <tbody>
                     ${aiCostRows.sort((a, b) => b.cost - a.cost).map(r => `
                       <tr>
@@ -3402,10 +3395,10 @@
           <!-- Per-Tenant Model Performance + Low Confidence Log -->
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
             <div class="card">
-              <div class="card-header"><span class="card-title">Per-Tenant Model Performance</span></div>
+              <div class="card-header"><span class="card-title">Per-Dealer Model Performance</span></div>
               <div class="table-responsive">
                 <table class="data-table">
-                  <thead><tr><th>Tenant</th><th>Inferences</th><th>Accuracy</th><th>Low Conf.</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Dealer</th><th>Inferences</th><th>Accuracy</th><th>Low Conf.</th><th>Status</th></tr></thead>
                   <tbody>
                     ${db.companies.map((co, i) => {
           const compInf = db.dealers.filter(d => d.company === co.name).reduce((s, d) => s + d.monthlyRequests, 0);
@@ -5309,7 +5302,9 @@
               <div class="card" style="padding:24px;">
                 <div class="card-header" style="padding:0 0 16px 0; border-bottom:1px solid var(--border-color); margin-bottom:20px;">
                   <span class="card-title" style="font-size:1rem; font-weight:700;">Store Information</span>
-                  <button class="btn btn-secondary btn-sm" onclick="window.BotNBoltApp.navigate('profile')">Edit Profile →</button>
+                  <button class="btn btn-secondary btn-sm flex-center" onclick="window.BotNBoltApp.navigate('profile')">
+                    <i data-lucide="plus-circle"></i> Add Store Profile
+                  </button>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                   <div style="display:flex; flex-direction:column; gap:12px;">
@@ -5461,6 +5456,306 @@
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: colors.text, font: { size: 10 } } } } }
           });
         }
+
+      } else if (menu === 'stores') {
+        const tableKey = 'stores_dlr';
+        const searchQuery = (this.state.searchQueries[tableKey] || '').toLowerCase();
+        const pageSize = this.state.pageSizes[tableKey] || 5;
+        const pageIndex = this.state.pageIndices[tableKey] || 0;
+
+        const filters = this.state.dropdownFilters[tableKey] || {};
+        const filterCity = filters.city || '';
+        const filterProvince = filters.province || '';
+        const filterStatus = filters.status || '';
+
+        const activeCat = this.state.selectedCategory || 'All';
+        const isAll = activeCat === 'All';
+        const companies = isAll ? this.state.db.superAdmin.companies : this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+        const activeCompany = companies[0] ? companies[0].name : 'Home hardware';
+
+        // Retrieve stores for active company
+        let allStores = (this.state.db.superAdmin.dealers || []).filter(d => d.company === activeCompany);
+        if (allStores.length === 0) {
+          allStores = this.state.db.superAdmin.dealers || [];
+        }
+
+        const currentStoreName = (this.state.db.dealer && this.state.db.dealer.storeName) || 'Home hardware 01';
+        const currentStore = allStores.find(s => s.name === currentStoreName) || allStores[0] || {};
+
+        // Available Cities and Provinces
+        const uniqueCities = [...new Set(allStores.map(d => d.city).filter(Boolean))];
+        const uniqueProvinces = [...new Set(allStores.map(d => d.province).filter(Boolean))];
+
+        // Filter rows
+        const filtered = allStores.filter(dl => {
+          const matchesSearch = (dl.name || '').toLowerCase().includes(searchQuery) ||
+            (dl.id || '').toLowerCase().includes(searchQuery) ||
+            (dl.location || '').toLowerCase().includes(searchQuery) ||
+            (dl.manager || '').toLowerCase().includes(searchQuery) ||
+            (dl.city || '').toLowerCase().includes(searchQuery) ||
+            (dl.province || '').toLowerCase().includes(searchQuery) ||
+            (dl.phone || '').toLowerCase().includes(searchQuery) ||
+            (dl.email || '').toLowerCase().includes(searchQuery);
+
+          const matchesCity = !filterCity || dl.city === filterCity;
+          const matchesProvince = !filterProvince || dl.province === filterProvince;
+          let matchesStatus = true;
+          if (filterStatus === 'Active') matchesStatus = dl.status === 'Active';
+          else if (filterStatus === 'Disabled') matchesStatus = dl.status === 'Disabled';
+          else if (filterStatus === 'Current') matchesStatus = dl.name === currentStoreName;
+
+          return matchesSearch && matchesCity && matchesProvince && matchesStatus;
+        });
+
+        // Paginate rows
+        const paginated = filtered.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+        const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+        const allRowIds = filtered.map(d => d.id);
+        const checked = this.state.checkedRows[tableKey] || [];
+
+        // KPI metrics
+        const totalStoresCount = allStores.length;
+        const activeStoresCount = allStores.filter(s => s.status === 'Active').length;
+        const totalRequestsCount = allStores.reduce((sum, s) => sum + (s.monthlyRequests || 0), 0);
+        const totalSalesSum = allStores.reduce((sum, s) => sum + (s.materialSales || 0), 0);
+
+        // Helper style for active card selection indication
+        const getActiveCardStyle = (currStatus, accentColor) => {
+          if (filterStatus === currStatus) {
+            return `box-shadow: 0 0 0 2px ${accentColor}; transform: translateY(-2px); font-weight: 700;`;
+          }
+          return '';
+        };
+
+        const storesStatHeader = `
+          <!-- Stores KPI Gradient Cards -->
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px;">
+            
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', '')" 
+                 style="padding:16px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('', 'var(--primary)')}"
+                 onmouseenter="if('${filterStatus}' !== '') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(37,99,235,0.1)'; }" 
+                 onmouseleave="if('${filterStatus}' !== '') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Store Network</div>
+                  <strong style="font-size:1.4rem; color:var(--text-primary);">${totalStoresCount} Locations</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(37,99,235,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="store" style="color:var(--primary); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">${activeCompany} affiliate retail stores</div>
+            </div>
+
+            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Active')" 
+                 style="padding:16px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Active', 'var(--success)')}"
+                 onmouseenter="if('${filterStatus}' !== 'Active') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'; }" 
+                 onmouseleave="if('${filterStatus}' !== 'Active') { this.style.transform=''; this.style.boxShadow=''; }">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">In-Service Stores</div>
+                  <strong style="font-size:1.4rem; color:var(--success);">${activeStoresCount} Active</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(16,185,129,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="check-circle-2" style="color:var(--success); width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Online AI kiosks & counter terminals</div>
+            </div>
+
+            <div class="card kpi-card-gradient" 
+                 style="padding:16px; border-left:4px solid #f59e0b; background:linear-gradient(135deg,var(--bg-card) 0%,rgba(245,158,11,0.05) 100%); transition:all 0.2s ease-in-out; border-radius: var(--radius-md);">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Monthly AI Scans</div>
+                  <strong style="font-size:1.4rem; color:var(--text-primary);">${totalRequestsCount}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(245,158,11,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="camera" style="color:#f59e0b; width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Processed damage inspection scans</div>
+            </div>
+
+            <div class="card kpi-card-gradient" 
+                 style="padding:16px; border-left:4px solid #a855f7; background:linear-gradient(135deg,var(--bg-card) 0%,rgba(168,85,247,0.05) 100%); transition:all 0.2s ease-in-out; border-radius: var(--radius-md);">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Total Material Sales</div>
+                  <strong style="font-size:1.4rem; color:var(--text-primary);">$${totalSalesSum.toLocaleString()}</strong>
+                </div>
+                <div class="kpi-icon-container" style="background: rgba(168,85,247,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="banknote" style="color:#a855f7; width:16px; height:16px;"></i>
+                </div>
+              </div>
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Network retail products revenue</div>
+            </div>
+
+          </div>
+        `;
+
+        canvas.innerHTML = storesStatHeader + `
+          <div class="card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <span class="card-title" style="display:flex; align-items:center; gap:8px;">
+                  <i data-lucide="store" style="width:18px; height:18px; color:var(--primary);"></i>
+                  <span>${activeCompany} Store Outlets & Locations (${filtered.length})</span>
+                </span>
+                <span style="font-size:0.76rem; color:var(--text-secondary);">
+                  Manage regional retail stores and view branch performance metrics.
+                </span>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <button class="btn btn-primary btn-sm flex-center" onclick="window.BotNBoltApp.openAddStoreModal()">
+                  <i data-lucide="plus-circle"></i> Add Store Outlet
+                </button>
+              </div>
+            </div>
+
+            <!-- Table Header Action Controls -->
+            <div class="table-header-actions" style="padding: 0 24px; margin-top: 10px;">
+              <div class="table-actions-left" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                <div class="search-wrapper">
+                  <i data-lucide="search"></i>
+                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search stores, managers, cities..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
+                </div>
+
+                <!-- City Filter -->
+                <select class="form-control dropdown-filter" style="width: 140px; font-size: 0.85rem; padding: 4px 8px; height: 32px;" onchange="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'city', this.value)">
+                  <option value="">All Cities</option>
+                  ${uniqueCities.map(c => `<option value="${c}" ${filterCity === c ? 'selected' : ''}>${c}</option>`).join('')}
+                </select>
+
+                <!-- Province Filter -->
+                <select class="form-control dropdown-filter" style="width: 150px; font-size: 0.85rem; padding: 4px 8px; height: 32px;" onchange="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'province', this.value)">
+                  <option value="">All Provinces</option>
+                  ${uniqueProvinces.map(p => `<option value="${p}" ${filterProvince === p ? 'selected' : ''}>${p}</option>`).join('')}
+                </select>
+
+                <!-- Status Filter -->
+                <select class="form-control dropdown-filter" style="width: 130px; font-size: 0.85rem; padding: 4px 8px; height: 32px;" onchange="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', this.value)">
+                  <option value="">All Statuses</option>
+                  <option value="Active" ${filterStatus === 'Active' ? 'selected' : ''}>Active</option>
+                  <option value="Disabled" ${filterStatus === 'Disabled' ? 'selected' : ''}>Disabled</option>
+                </select>
+
+                <select class="bulk-actions-select" id="bulk-${tableKey}" style="${checked.length > 0 ? 'display:block;' : 'display:none;'}" onchange="window.BotNBoltApp.triggerBulkAction('${tableKey}', this.value)">
+                  <option value="">Bulk Actions (${checked.length} Selected)</option>
+                  <option value="disable">Disable Selected</option>
+                  <option value="export">Export Selected</option>
+                </select>
+              </div>
+
+              <div class="table-actions-right">
+                <button class="btn btn-secondary btn-sm flex-center" onclick="window.BotNBoltApp.exportStoresCsv('${tableKey}')" title="Export Current List to CSV">
+                  <i data-lucide="download"></i> Export CSV
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width: 40px; padding-left: 24px;">
+                      <input type="checkbox" id="chk-all-${tableKey}" style="width:16px; height:16px; cursor:pointer;" ${checked.length === allRowIds.length && allRowIds.length > 0 ? 'checked' : ''} onchange="window.BotNBoltApp.handleSelectAllChange('${tableKey}', this.checked, ${JSON.stringify(allRowIds).replace(/"/g, '&quot;')})">
+                    </th>
+                    <th style="width: 120px;">Id</th>
+                    <th>Store Name</th>
+                    <th>Contact</th>
+                    <th style="text-align: center; width: 130px;">Active</th>
+                    <th style="text-align: center; width: 100px; padding-right: 24px;">Delete</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${paginated.length === 0 ? `
+                    <tr>
+                      <td colspan="6" style="text-align:center; padding: 36px; color: var(--text-secondary);">
+                        <i data-lucide="store" style="width:36px; height:36px; opacity:0.4; margin-bottom:8px; display:inline-block;"></i>
+                        <div>No store locations match your active filter criteria.</div>
+                      </td>
+                    </tr>
+                  ` : paginated.map(dl => {
+                    const isCurrent = dl.name === currentStoreName;
+                    return `
+                      <tr>
+                        <td style="padding-left: 24px;">
+                          <input type="checkbox" id="chk-${tableKey}-${dl.id}" style="width:16px; height:16px; cursor:pointer;" ${checked.includes(dl.id) ? 'checked' : ''} onchange="window.BotNBoltApp.handleCheckboxChange('${tableKey}', '${dl.id}', this.checked)">
+                        </td>
+                        <td>
+                          <code class="sku-tag" style="font-weight:700; font-size:0.76rem; color:var(--primary); background:rgba(37,99,235,0.08); padding:3px 8px; border-radius:4px;">${dl.id}</code>
+                        </td>
+                        <td>
+                          <div style="display:flex; flex-direction:column; gap:2px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                              <strong style="color:var(--text-primary); font-size:0.88rem;">${dl.name}</strong>
+                              ${isCurrent ? `<span class="badge badge-info" style="font-size:0.65rem; padding:1px 6px;">Current</span>` : ''}
+                            </div>
+                            <small style="color:var(--text-secondary); font-size:0.75rem;">${dl.location || dl.address || 'Address N/A'}${dl.city ? `, ${dl.city}` : ''}${dl.province ? `, ${dl.province}` : ''}</small>
+                          </div>
+                        </td>
+                        <td>
+                          <div style="display:flex; flex-direction:column; gap:2px;">
+                            <span style="font-size:0.84rem; font-weight:600; color:var(--text-primary);">${dl.manager || 'Manager N/A'}</span>
+                            <div style="display:flex; align-items:center; gap:8px; font-size:0.74rem; color:var(--text-secondary); flex-wrap:wrap;">
+                              <a href="tel:${dl.phone}" style="color:var(--primary); text-decoration:none; font-weight:500;">
+                                <i data-lucide="phone" style="width:11px; height:11px; margin-right:3px; display:inline-block; vertical-align:middle;"></i>${dl.phone || 'N/A'}
+                              </a>
+                              ${dl.email ? `
+                                <span style="opacity:0.4;">•</span>
+                                <a href="mailto:${dl.email}" style="color:var(--text-secondary); text-decoration:none;" title="${dl.email}">
+                                  <i data-lucide="mail" style="width:11px; height:11px; margin-right:3px; display:inline-block; vertical-align:middle;"></i>${dl.email}
+                                </a>
+                              ` : ''}
+                            </div>
+                          </div>
+                        </td>
+                        <td style="text-align: center;">
+                          <button class="btn btn-sm ${dl.status === 'Active' ? 'btn-success' : 'btn-secondary'}" 
+                                  onclick="window.BotNBoltApp.toggleStoreStatus('${dl.id}')"
+                                  style="padding: 4px 14px; font-size: 0.76rem; font-weight: 700; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s ease; ${dl.status === 'Active' ? 'background: #dcfce7; color: #15803d; border: 1px solid #86efac; box-shadow: 0 1px 3px rgba(34,197,94,0.18);' : 'background: var(--bg-app); color: var(--text-secondary); border: 1px solid var(--border-color);'}"
+                                  title="Click to toggle Active status">
+                            <i data-lucide="${dl.status === 'Active' ? 'check-circle-2' : 'x-circle'}" style="width: 14px; height: 14px; color: ${dl.status === 'Active' ? '#16a34a' : 'inherit'}; stroke-width: 2.2;"></i>
+                            <span>${dl.status === 'Active' ? 'Active' : 'Disabled'}</span>
+                          </button>
+                        </td>
+                        <td style="text-align: center; padding-right: 24px;">
+                          <button class="action-icon-btn danger" 
+                                  onclick="window.BotNBoltApp.deleteStoreProfile('${dl.id}')" 
+                                  title="Delete Store Profile" 
+                                  style="color:var(--danger); border-color:rgba(239,68,68,0.25); background:rgba(239,68,68,0.06); cursor:pointer; margin: 0 auto; display: inline-flex; align-items: center; justify-content: center;">
+                            <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Table Pagination Footer -->
+            <div class="table-footer-pagination">
+              <div>
+                Showing <strong>${filtered.length === 0 ? 0 : pageIndex * pageSize + 1}</strong> to 
+                <strong>${Math.min((pageIndex + 1) * pageSize, filtered.length)}</strong> of 
+                <strong>${filtered.length}</strong> stores
+              </div>
+              <div class="pagination-controls">
+                <span style="margin-right:8px;">Rows per page:</span>
+                <select class="rows-selector" style="margin-right:16px;" onchange="window.BotNBoltApp.handleTablePageSizeChange('${tableKey}', this.value)">
+                  <option value="5" ${pageSize === 5 ? 'selected' : ''}>5</option>
+                  <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
+                  <option value="25" ${pageSize === 25 ? 'selected' : ''}>25</option>
+                </select>
+                <button class="pagination-btn" ${pageIndex === 0 ? 'disabled' : ''} onclick="window.BotNBoltApp.handleTablePageChange('${tableKey}', ${pageIndex - 1})" title="Previous Page"><i data-lucide="chevron-left" style="width:14px; height:14px;"></i></button>
+                <span style="font-weight:600; margin:0 8px;">Page ${pageIndex + 1} of ${totalPages}</span>
+                <button class="pagination-btn" ${pageIndex >= totalPages - 1 ? 'disabled' : ''} onclick="window.BotNBoltApp.handleTablePageChange('${tableKey}', ${pageIndex + 1})" title="Next Page"><i data-lucide="chevron-right" style="width:14px; height:14px;"></i></button>
+              </div>
+            </div>
+          </div>
+        `;
 
       } else if (menu === 'requests') {
         const tableKey = 'requests_dlr';
@@ -6042,333 +6337,325 @@
           </div>
         `;
         lucide.createIcons();
-      } else if (menu === 'leads') {
-        const tableKey = 'leads_dlr';
-        const searchQuery = (this.state.searchQueries[tableKey] || '').toLowerCase();
-        const pageSize = this.state.pageSizes[tableKey] || 5;
-        const pageIndex = this.state.pageIndices[tableKey] || 0;
+      } else if (menu === 'profile') {
+        const activeCat = this.state.selectedCategory || 'All';
+        const isAll = activeCat === 'All';
+        const companies = isAll ? (this.state.db.superAdmin.companies || []) : (this.state.db.superAdmin.companies || []).filter(c => this.getCompanyCategory(c.name) === activeCat);
+        const activeCompany = companies[0] ? companies[0].name : 'Home hardware';
 
-        const filters = this.state.dropdownFilters[tableKey] || {};
-        const statusFilter = filters.status || '';
+        const allStores = (this.state.db.superAdmin.dealers || []);
+        const nextNum = allStores.length + 1;
+        const suggestedNumStr = nextNum < 10 ? '0' + nextNum : nextNum;
+        const suggestedId = `DLR-HH-${suggestedNumStr}`;
+        const defaultStoreName = `Home hardware ${suggestedNumStr}`;
 
-        // Calculate counts
-        const totalCount = db.customerLeads.length;
-        const newCount = db.customerLeads.filter(l => l.leadStatus === 'New').length;
-        const contactedCount = db.customerLeads.filter(l => l.leadStatus === 'Contacted').length;
-        const convertedCount = db.customerLeads.filter(l => l.leadStatus === 'Converted').length;
-        const closedCount = db.customerLeads.filter(l => l.leadStatus === 'Closed').length;
-
-        // Filter rows
-        const filtered = db.customerLeads.filter(lead => {
-          const matchesSearch = lead.name.toLowerCase().includes(searchQuery) ||
-            lead.phone.toLowerCase().includes(searchQuery) ||
-            lead.email.toLowerCase().includes(searchQuery) ||
-            lead.repairType.toLowerCase().includes(searchQuery) ||
-            lead.interestedProducts.toLowerCase().includes(searchQuery) ||
-            lead.leadStatus.toLowerCase().includes(searchQuery);
-          const matchesStatus = !statusFilter || lead.leadStatus === statusFilter;
-          return matchesSearch && matchesStatus;
-        });
-
-        // Paginate rows
-        const paginated = filtered.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
-        const totalPages = Math.ceil(filtered.length / pageSize) || 1;
-        const allRowIds = filtered.map((l, i) => 'lead-' + i);
-        const checked = this.state.checkedRows[tableKey] || [];
-
-        // Helper style for active card selection indication
-        const getActiveCardStyle = (currStatus, accentColor) => {
-          if (statusFilter === currStatus) {
-            return `box-shadow: 0 0 0 2px ${accentColor}; transform: translateY(-2px); font-weight: 700;`;
-          }
-          return '';
-        };
-
-        const leadsStatHeader = `
-          <!-- Leads KPI Cards for Interactive Filtering -->
-          <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-bottom: 24px;">
+        canvas.innerHTML = `
+          <div style="animation: fadeIn 0.3s ease;">
             
-            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', '')" 
-                 style="padding:16px; border-left:4px solid var(--primary); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(37,99,235,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('', 'var(--primary)')}"
-                 onmouseenter="if('${statusFilter}' !== '') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(37,99,235,0.1)'; }" 
-                 onmouseleave="if('${statusFilter}' !== '') { this.style.transform=''; this.style.boxShadow=''; }">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
+            <!-- Top Hero Banner -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:16px; background:linear-gradient(135deg, var(--bg-card) 0%, rgba(37,99,235,0.06) 100%); padding:20px 24px; border-radius:var(--radius-lg); border:1px solid var(--border-color);">
+              <div style="display:flex; align-items:center; gap:16px;">
+                <div style="width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%); display:flex; align-items:center; justify-content:center; color:white; box-shadow:0 4px 14px rgba(37,99,235,0.35);">
+                  <i data-lucide="store" style="width:24px; height:24px;"></i>
+                </div>
                 <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Total Leads</div>
-                  <strong style="font-size:1.4rem; color:var(--text-primary);">${totalCount}</strong>
-                </div>
-                <div class="kpi-icon-container" style="background: rgba(37,99,235,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="users" style="color:var(--primary); width:16px; height:16px;"></i>
-                </div>
-              </div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Show all customer leads</div>
-            </div>
-
-            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'New')" 
-                 style="padding:16px; border-left:4px solid var(--danger); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(239,68,68,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('New', 'var(--danger)')}"
-                 onmouseenter="if('${statusFilter}' !== 'New') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(239,68,68,0.1)'; }" 
-                 onmouseleave="if('${statusFilter}' !== 'New') { this.style.transform=''; this.style.boxShadow=''; }">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">New Leads</div>
-                  <strong style="font-size:1.4rem; color:var(--danger);">${newCount}</strong>
-                </div>
-                <div class="kpi-icon-container" style="background: rgba(239,68,68,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="user-plus" style="color:var(--danger); width:16px; height:16px;"></i>
+                  <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+                    <h2 style="margin:0; font-size:1.4rem; font-weight:800; color:var(--text-primary);">Add Store Profile</h2>
+                    <span class="badge badge-info" style="font-size:0.75rem; font-weight:600; padding:4px 8px;">Network Onboarding</span>
+                    <span class="badge badge-success" style="font-size:0.75rem; font-weight:600; padding:4px 8px;">AI Terminal Ready</span>
+                  </div>
+                  <p style="margin:0; font-size:0.85rem; color:var(--text-secondary);">
+                    Register a new retail store branch into the regional network. Automatically configure AI diagnostic kiosks, regional SKU inventory catalog, and manager credentials.
+                  </p>
                 </div>
               </div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by New leads</div>
-            </div>
-
-            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Contacted')" 
-                 style="padding:16px; border-left:4px solid var(--warning); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(245,158,11,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Contacted', 'var(--warning)')}"
-                 onmouseenter="if('${statusFilter}' !== 'Contacted') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(245,158,11,0.1)'; }" 
-                 onmouseleave="if('${statusFilter}' !== 'Contacted') { this.style.transform=''; this.style.boxShadow=''; }">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Contacted</div>
-                  <strong style="font-size:1.4rem; color:var(--warning);">${contactedCount}</strong>
-                </div>
-                <div class="kpi-icon-container" style="background: rgba(245,158,11,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="phone-call" style="color:var(--warning); width:16px; height:16px;"></i>
-                </div>
-              </div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by Contacted</div>
-            </div>
-
-            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Converted')" 
-                 style="padding:16px; border-left:4px solid var(--success); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(16,185,129,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Converted', 'var(--success)')}"
-                 onmouseenter="if('${statusFilter}' !== 'Converted') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(16,185,129,0.1)'; }" 
-                 onmouseleave="if('${statusFilter}' !== 'Converted') { this.style.transform=''; this.style.boxShadow=''; }">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Converted</div>
-                  <strong style="font-size:1.4rem; color:var(--success);">${convertedCount}</strong>
-                </div>
-                <div class="kpi-icon-container" style="background: rgba(16,185,129,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="user-check" style="color:var(--success); width:16px; height:16px;"></i>
-                </div>
-              </div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by Converted leads</div>
-            </div>
-
-            <div class="card kpi-card-gradient" onclick="window.BotNBoltApp.handleTableFilterChange('${tableKey}', 'status', 'Closed')" 
-                 style="padding:16px; border-left:4px solid #6b7280; background:linear-gradient(135deg,var(--bg-card) 0%,rgba(107,114,128,0.05) 100%); cursor:pointer; transition:all 0.2s ease-in-out; border-radius: var(--radius-md); ${getActiveCardStyle('Closed', '#6b7280')}"
-                 onmouseenter="if('${statusFilter}' !== 'Closed') { this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 20px rgba(107,114,128,0.1)'; }" 
-                 onmouseleave="if('${statusFilter}' !== 'Closed') { this.style.transform=''; this.style.boxShadow=''; }">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Closed</div>
-                  <strong style="font-size:1.4rem; color:#6b7280;">${closedCount}</strong>
-                </div>
-                <div class="kpi-icon-container" style="background: rgba(107,114,128,0.1); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-                  <i data-lucide="lock" style="color:#6b7280; width:16px; height:16px;"></i>
-                </div>
-              </div>
-              <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:8px;">Filter by Closed leads</div>
-            </div>
-
-          </div>
-        `;
-
-        canvas.innerHTML = leadsStatHeader + `
-          <div class="card">
-            <div class="card-header">
-              <div style="display:flex; flex-direction:column; gap:4px;">
-                <span class="card-title">Customer Leads Management (CRM)</span>
-                ${statusFilter ? `<span style="font-size: 0.78rem; color: var(--text-secondary);">Active Filter: <strong style="color: var(--primary); text-transform: uppercase;">${statusFilter}</strong></span>` : ''}
-              </div>
-            </div>
-            
-            <!-- Table Action Controls -->
-            <div class="table-header-actions" style="padding: 0 24px; margin-top: 10px;">
-              <div class="table-actions-left">
-                <div class="search-wrapper">
-                  <i data-lucide="search"></i>
-                  <input type="text" class="form-control search-input" id="search-${tableKey}" placeholder="Search leads..." value="${this.state.searchQueries[tableKey] || ''}" oninput="window.BotNBoltApp.handleTableSearch('${tableKey}', this.value)">
-                </div>
-                
-                <select class="bulk-actions-select" id="bulk-${tableKey}" style="${checked.length > 0 ? 'display:block;' : 'display:none;'}" onchange="window.BotNBoltApp.triggerBulkAction('${tableKey}', this.value)">
-                  <option value="">Bulk Actions (${checked.length} Selected)</option>
-                  <option value="export">Export Selected</option>
-                </select>
-              </div>
-              
-              <div class="table-actions-right">
-                <button class="btn btn-secondary btn-sm flex-center" onclick="window.BotNBoltApp.exportLeadsDlrCsv('${tableKey}')" title="Export Current List to CSV">
-                  <i data-lucide="download"></i> Export CSV
+              <div style="display:flex; align-items:center; gap:10px;">
+                <button class="btn btn-secondary btn-sm flex-center" onclick="window.BotNBoltApp.navigate('stores')">
+                  <i data-lucide="list"></i> View Store List (${allStores.length})
                 </button>
               </div>
             </div>
 
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th style="width: 40px; padding-left: 24px;">
-                      <input type="checkbox" id="chk-all-${tableKey}" style="width:16px; height:16px; cursor:pointer;" ${checked.length === allRowIds.length && allRowIds.length > 0 ? 'checked' : ''} onchange="window.BotNBoltApp.handleSelectAllChange('${tableKey}', this.checked, ${JSON.stringify(allRowIds).replace(/"/g, '&quot;')})">
-                    </th>
-                    <th>Customer Name</th>
-                    <th>Phone</th>
-                    <th>Email</th>
-                    <th>Repair Category</th>
-                    <th>Interested Products</th>
-                    <th>Location Area</th>
-                    <th>Lead Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${paginated.length === 0 ? `
-                    <tr>
-                      <td colspan="10" style="text-align:center; padding: 32px; color: var(--text-secondary);">No records match your search filter.</td>
-                    </tr>
-                  ` : paginated.map((lead, idx) => `
-                    <tr>
-                      <td style="padding-left: 24px;">
-                        <input type="checkbox" id="chk-${tableKey}-lead-${idx}" style="width:16px; height:16px; cursor:pointer;" ${checked.includes('lead-' + idx) ? 'checked' : ''} onchange="window.BotNBoltApp.handleCheckboxChange('${tableKey}', 'lead-${idx}', this.checked)">
-                      </td>
-                      <td><strong>${lead.name}</strong></td>
-                      <td>${lead.phone}</td>
-                      <td>${lead.email}</td>
-                      <td>${lead.repairType}</td>
-                      <td><code>${lead.interestedProducts}</code></td>
-                      <td>${lead.location}</td>
-                      <td><span class="badge ${lead.leadStatus === 'New' ? 'badge-danger' : lead.leadStatus === 'Closed' ? 'badge-success' : 'badge-warning'}">${lead.leadStatus}</span></td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
+            <!-- 2-Column Grid Layout: Live Card Preview + Registration Form -->
+            <div style="display:grid; grid-template-columns: 360px 1fr; gap: 24px; align-items:start;">
+              
+              <!-- Left Column: Live Profile Preview Card & Provisioning Checklist -->
+              <div style="display:flex; flex-direction:column; gap:20px; position:sticky; top:20px;">
+                
+                <!-- Live Profile Card -->
+                <div class="card" style="padding: 24px; border-top:4px solid var(--primary); box-shadow:0 8px 24px rgba(0,0,0,0.06);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; padding-bottom:12px; border-bottom:1px solid var(--border-color);">
+                    <span style="font-size:0.72rem; text-transform:uppercase; font-weight:700; color:var(--text-secondary); letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+                      <span style="width:8px; height:8px; border-radius:50%; background:var(--success); display:inline-block; animation:pulse 2s infinite;"></span>
+                      Live Store Card Preview
+                    </span>
+                    <span class="badge badge-success" id="asp-preview-status-pill" style="font-size:0.7rem;">Active Outlet</span>
+                  </div>
 
-            <!-- Table Pagination Footer -->
-            <div class="table-footer-pagination">
-              <div>
-                Showing <strong>${filtered.length === 0 ? 0 : pageIndex * pageSize + 1}</strong> to 
-                <strong>${Math.min((pageIndex + 1) * pageSize, filtered.length)}</strong> of 
-                <strong>${filtered.length}</strong> leads
+                  <!-- Store Avatar & Title -->
+                  <div style="text-align: center; margin-bottom: 20px;">
+                    <div id="asp-preview-avatar" style="width: 76px; height: 76px; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%); margin: 0 auto 12px auto; display:flex; align-items:center; justify-content:center; color:white; font-size:1.6rem; font-weight:800; box-shadow: 0 4px 14px rgba(37,99,235,0.3)">
+                      HH
+                    </div>
+                    <h4 id="asp-preview-name" style="margin:0 0 4px 0; font-size:1.15rem; font-weight:800; color:var(--text-primary); word-break:break-word;">${defaultStoreName}</h4>
+                    <div style="display:flex; justify-content:center; align-items:center; gap:6px; margin-bottom:12px;">
+                      <code id="asp-preview-id" style="font-weight:700; font-size:0.78rem; color:var(--primary); background:rgba(37,99,235,0.1); padding:2px 8px; border-radius:4px;">${suggestedId}</code>
+                      <span id="asp-preview-company-badge" class="badge badge-info" style="font-size:0.72rem;">${activeCompany}</span>
+                    </div>
+                    <div style="display:flex; justify-content:center; gap:8px;">
+                      <span class="badge" style="background:rgba(16,185,129,0.1); color:var(--success); border:1px solid rgba(16,185,129,0.2); padding:4px 10px; font-size:0.72rem; display:flex; align-items:center; gap:4px;">
+                        <i data-lucide="check-circle-2" style="width:12px; height:12px;"></i> AI Kiosk Online
+                      </span>
+                      <span class="badge" style="background:rgba(37,99,235,0.1); color:var(--primary); border:1px solid rgba(37,99,235,0.2); padding:4px 10px; font-size:0.72rem; display:flex; align-items:center; gap:4px;">
+                        <i data-lucide="database" style="width:12px; height:12px;"></i> Catalog Synced
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Store Details in Preview -->
+                  <div style="background:var(--bg-app); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:14px; display:flex; flex-direction:column; gap:10px; font-size:0.8rem; margin-bottom:16px;">
+                    <div style="display:flex; align-items:flex-start; gap:8px;">
+                      <i data-lucide="map-pin" style="width:15px; height:15px; color:var(--primary); margin-top:2px; flex-shrink:0;"></i>
+                      <div style="word-break:break-word;">
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase;">Store Address</div>
+                        <strong id="asp-preview-location" style="color:var(--text-primary);">450 Hwy 7 East, Markham, Ontario</strong>
+                      </div>
+                    </div>
+
+                    <div style="display:flex; align-items:flex-start; gap:8px;">
+                      <i data-lucide="user" style="width:15px; height:15px; color:var(--primary); margin-top:2px; flex-shrink:0;"></i>
+                      <div>
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase;">Store Manager</div>
+                        <strong id="asp-preview-manager" style="color:var(--text-primary);">Robert Chen</strong>
+                      </div>
+                    </div>
+
+                    <div style="display:flex; align-items:flex-start; gap:8px;">
+                      <i data-lucide="phone" style="width:15px; height:15px; color:var(--primary); margin-top:2px; flex-shrink:0;"></i>
+                      <div>
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase;">Phone</div>
+                        <span id="asp-preview-phone" style="color:var(--text-primary); font-weight:600;">+1 (905) 555-0144</span>
+                      </div>
+                    </div>
+
+                    <div style="display:flex; align-items:flex-start; gap:8px;">
+                      <i data-lucide="mail" style="width:15px; height:15px; color:var(--primary); margin-top:2px; flex-shrink:0;"></i>
+                      <div style="word-break:break-word;">
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase;">Email</div>
+                        <span id="asp-preview-email" style="color:var(--text-primary); font-weight:600;">markham@hhdealers.com</span>
+                      </div>
+                    </div>
+
+                    <div style="display:flex; align-items:flex-start; gap:8px;">
+                      <i data-lucide="clock" style="width:15px; height:15px; color:var(--primary); margin-top:2px; flex-shrink:0;"></i>
+                      <div>
+                        <div style="font-size:0.68rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase;">Hours</div>
+                        <span id="asp-preview-hours" style="color:var(--text-primary); font-size:0.78rem;">Mon-Sat: 08:00 AM - 08:00 PM</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Provisioning Checklist -->
+                  <div style="border-top:1px solid var(--border-color); padding-top:14px;">
+                    <div style="font-size:0.76rem; font-weight:700; color:var(--text-primary); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                      <i data-lucide="shield-check" style="width:14px; height:14px; color:var(--success);"></i> Automatic Provisioning
+                    </div>
+                    <div style="font-size:0.74rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:6px;">
+                      <div style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="check" style="width:12px; height:12px; color:var(--success);"></i> Instant Network Registration
+                      </div>
+                      <div style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="check" style="width:12px; height:12px; color:var(--success);"></i> AI Diagnostic Terminal API Key
+                      </div>
+                      <div style="display:flex; align-items:center; gap:6px;">
+                        <i data-lucide="check" style="width:12px; height:12px; color:var(--success);"></i> Central Materials Catalog Link
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Network Context Card -->
+                <div class="card" style="padding:18px; border-left:4px solid var(--info); background:linear-gradient(135deg,var(--bg-card) 0%,rgba(6,182,212,0.05) 100%);">
+                  <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <i data-lucide="info" style="width:16px; height:16px; color:var(--info);"></i>
+                    <h5 style="margin:0; font-size:0.85rem; font-weight:700; color:var(--text-primary);">Network Summary</h5>
+                  </div>
+                  <div style="font-size:0.76rem; color:var(--text-secondary); line-height:1.5;">
+                    Current Active Stores: <strong>${allStores.length} Locations</strong><br>
+                    Parent Brand: <strong>${activeCompany}</strong><br>
+                    AI Diagnostic Engine: <strong style="color:var(--success);">v4.8.2 Online</strong>
+                  </div>
+                </div>
+
               </div>
-              <div class="pagination-controls">
-                <span style="margin-right:8px;">Rows per page:</span>
-                <select class="rows-selector" style="margin-right:16px;" onchange="window.BotNBoltApp.handleTablePageSizeChange('${tableKey}', this.value)">
-                  <option value="5" ${pageSize === 5 ? 'selected' : ''}>5</option>
-                  <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
-                  <option value="25" ${pageSize === 25 ? 'selected' : ''}>25</option>
-                </select>
-                <button class="pagination-btn" ${pageIndex === 0 ? 'disabled' : ''} onclick="window.BotNBoltApp.handleTablePageChange('${tableKey}', ${pageIndex - 1})" title="Previous Page"><i data-lucide="chevron-left" style="width:14px; height:14px;"></i></button>
-                <span style="font-weight:600; margin:0 8px;">Page ${pageIndex + 1} of ${totalPages}</span>
-                <button class="pagination-btn" ${pageIndex >= totalPages - 1 ? 'disabled' : ''} onclick="window.BotNBoltApp.handleTablePageChange('${tableKey}', ${pageIndex + 1})" title="Next Page"><i data-lucide="chevron-right" style="width:14px; height:14px;"></i></button>
+
+              <!-- Right Column: Registration Form -->
+              <div class="card" style="padding: 28px; box-shadow:0 8px 24px rgba(0,0,0,0.06);">
+                <form id="addStoreProfilePageForm" onsubmit="event.preventDefault(); window.BotNBoltApp.submitAddStoreProfile();">
+                  
+                  <!-- Section 1: Store & Organization Identity -->
+                  <div style="margin-bottom:28px;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid var(--border-color);">
+                      <div style="width:28px; height:28px; border-radius:6px; background:rgba(37,99,235,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">1</div>
+                      <div>
+                        <h4 style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);">Store Identity & Brand Organization</h4>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Define the primary retail store branding and unique network identifier</div>
+                      </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+                      <div class="form-group">
+                        <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">Store Outlet Name *</label>
+                        <input type="text" class="form-control" id="asp-name" value="${defaultStoreName}" placeholder="e.g. Home hardware ${suggestedNumStr}" required oninput="window.BotNBoltApp.updateAddStorePreview()">
+                        <small style="font-size:0.72rem; color:var(--text-secondary);">Public name of the retail store or branch</small>
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">Store Code / ID *</label>
+                        <input type="text" class="form-control" id="asp-id" value="${suggestedId}" placeholder="e.g. ${suggestedId}" required oninput="window.BotNBoltApp.updateAddStorePreview()">
+                        <small style="font-size:0.72rem; color:var(--text-secondary);">Unique dealer identifier in network</small>
+                      </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                      <div class="form-group">
+                        <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">Parent Company / Brand *</label>
+                        <select class="form-control" id="asp-company" required onchange="window.BotNBoltApp.updateAddStorePreview()">
+                          ${(companies.length > 0 ? companies : [{name: 'Home hardware'}, {name: 'BMR Group'}]).map(c => `<option value="${c.name}" ${c.name === activeCompany ? 'selected' : ''}>${c.name}</option>`).join('')}
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">Initial Outlet Status *</label>
+                        <select class="form-control" id="asp-status" required onchange="window.BotNBoltApp.updateAddStorePreview()">
+                          <option value="Active" selected>Active (Live & Accepting Scans)</option>
+                          <option value="Disabled">Disabled (Maintenance / Staging)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Section 2: Location & Schedule -->
+                  <div style="margin-bottom:28px;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid var(--border-color);">
+                      <div style="width:28px; height:28px; border-radius:6px; background:rgba(37,99,235,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">2</div>
+                      <div>
+                        <h4 style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);">Physical Location & Operating Schedule</h4>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Set the branch physical address, municipality, and customer business hours</div>
+                      </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:16px;">
+                      <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">Street Address *</label>
+                      <input type="text" class="form-control" id="asp-location" value="450 Hwy 7 East" placeholder="e.g. 450 Hwy 7 East" required oninput="window.BotNBoltApp.updateAddStorePreview()">
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; margin-bottom:16px;">
+                      <div class="form-group">
+                        <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">City *</label>
+                        <input type="text" class="form-control" id="asp-city" value="Markham" placeholder="e.g. Markham" required oninput="window.BotNBoltApp.updateAddStorePreview()">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">Province *</label>
+                        <select class="form-control" id="asp-province" required onchange="window.BotNBoltApp.updateAddStorePreview()">
+                          <option value="Ontario" selected>Ontario</option>
+                          <option value="Quebec">Quebec</option>
+                          <option value="British Columbia">British Columbia</option>
+                          <option value="Alberta">Alberta</option>
+                          <option value="Manitoba">Manitoba</option>
+                          <option value="Saskatchewan">Saskatchewan</option>
+                          <option value="Nova Scotia">Nova Scotia</option>
+                          <option value="New Brunswick">New Brunswick</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">Postal Code</label>
+                        <input type="text" class="form-control" id="asp-postal" value="L3R 1B2" placeholder="e.g. L3R 1B2" oninput="window.BotNBoltApp.updateAddStorePreview()">
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">Store Operating Hours</label>
+                      <input type="text" class="form-control" id="asp-hours" value="Mon-Sat: 08:00 AM - 08:00 PM, Sun: 10:00 AM - 05:00 PM" placeholder="e.g. Mon-Sat: 08:00 AM - 08:00 PM" oninput="window.BotNBoltApp.updateAddStorePreview()">
+                    </div>
+                  </div>
+
+                  <!-- Section 3: Management Contact -->
+                  <div style="margin-bottom:28px;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid var(--border-color);">
+                      <div style="width:28px; height:28px; border-radius:6px; background:rgba(37,99,235,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">3</div>
+                      <div>
+                        <h4 style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);">Store Management & Communications</h4>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Direct contact information for branch administration and customer lead notifications</div>
+                      </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px;">
+                      <div class="form-group">
+                        <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">Assigned Manager *</label>
+                        <input type="text" class="form-control" id="asp-manager" value="Robert Chen" placeholder="e.g. Robert Chen" required oninput="window.BotNBoltApp.updateAddStorePreview()">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">Store Phone *</label>
+                        <input type="text" class="form-control" id="asp-phone" value="+1 (905) 555-0144" placeholder="e.g. +1 (905) 555-0144" required oninput="window.BotNBoltApp.updateAddStorePreview()">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.82rem;">Store Email *</label>
+                        <input type="email" class="form-control" id="asp-email" value="markham@hhdealers.com" placeholder="e.g. store@hhdealers.com" required oninput="window.BotNBoltApp.updateAddStorePreview()">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Section 4: AI & Terminal Settings -->
+                  <div style="margin-bottom:28px;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid var(--border-color);">
+                      <div style="width:28px; height:28px; border-radius:6px; background:rgba(37,99,235,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">4</div>
+                      <div>
+                        <h4 style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);">Terminal & AI Integration Preferences</h4>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">Configure real-time scan ingestion, POS inventory bridge, and SMS alerts</div>
+                      </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:12px; background:var(--bg-app); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:16px;">
+                      <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
+                        <input type="checkbox" id="asp-ai-enabled" checked style="width:16px; height:16px; cursor:pointer;">
+                        <span><strong style="color:var(--text-primary);">AI Diagnostic Scanner Station:</strong> Enable high-resolution surface scan & automated material estimation kiosk</span>
+                      </label>
+                      <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
+                        <input type="checkbox" id="asp-sku-sync" checked style="width:16px; height:16px; cursor:pointer;">
+                        <span><strong style="color:var(--text-primary);">POS Inventory Synchronization:</strong> Automatically bridge local stock database with regional materials catalog</span>
+                      </label>
+                      <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
+                        <input type="checkbox" id="asp-alerts" checked style="width:16px; height:16px; cursor:pointer;">
+                        <span><strong style="color:var(--text-primary);">Customer Dispatch Alerts:</strong> Send instant notifications for new AI repair requests and order leads</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Form Action Buttons -->
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid var(--border-color); flex-wrap:wrap; gap:12px;">
+                    <button type="button" class="btn btn-secondary flex-center" onclick="window.BotNBoltApp.navigate('stores')">
+                      <i data-lucide="arrow-left"></i> Cancel & View Store List
+                    </button>
+                    <div style="display:flex; gap:12px;">
+                      <button type="button" class="btn btn-secondary flex-center" onclick="window.BotNBoltApp.resetAddStoreProfileForm()">
+                        <i data-lucide="rotate-ccw"></i> Reset
+                      </button>
+                      <button type="submit" class="btn btn-primary flex-center" style="padding:10px 24px; font-weight:700; font-size:0.9rem;">
+                        <i data-lucide="plus-circle"></i> Create & Register Store Profile
+                      </button>
+                    </div>
+                  </div>
+
+                </form>
               </div>
+
             </div>
 
           </div>
         `;
         lucide.createIcons();
-      } else if (menu === 'profile') {
-        canvas.innerHTML = `
-          <div style="display:grid; grid-template-columns: 1fr 2fr; gap: 24px; animation: fadeIn 0.3s ease;">
-            
-            <!-- Left Column: Outlet Profile Card -->
-            <div style="display:flex; flex-direction:column; gap:20px;">
-              <div class="card" style="padding: 24px; text-align: center;">
-                <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%); margin: 0 auto 16px auto; display:flex; align-items:center; justify-content:center; color:white; font-size:1.8rem; font-weight:800; box-shadow: 0 4px 14px rgba(37,99,235,0.3)">
-                  ${db.storeName.substring(0, 2).toUpperCase()}
-                </div>
-                <h4 style="margin:0 0 4px 0; font-size:1.2rem; font-weight:800; color:var(--text-primary);">${db.storeName}</h4>
-                <p style="margin:0 0 16px 0; font-size:0.78rem; color:var(--text-secondary);">Outlet ID: <code style="font-weight:700; color:var(--primary);">DLR-${db.storeName.replace(/\s+/g, '-').toUpperCase()}</code></p>
-                
-                <div style="display:flex; justify-content:center; gap:8px; margin-bottom:20px;">
-                  <span class="badge badge-success" style="padding:4px 10px; font-size:0.75rem;">Online</span>
-                  <span class="badge badge-info" style="padding:4px 10px; font-size:0.75rem;">Scanner Active</span>
-                </div>
-
-                <div style="border-top:1px solid var(--border-color); padding-top:16px; text-align:left; display:flex; flex-direction:column; gap:12px; font-size:0.8rem;">
-                  <div style="display:flex; justify-content:space-between;">
-                    <span style="color:var(--text-secondary);">Operating Region</span>
-                    <strong style="color:var(--text-primary);">${db.city}</strong>
-                  </div>
-                  <div style="display:flex; justify-content:space-between;">
-                    <span style="color:var(--text-secondary);">Total Sync Scans</span>
-                    <strong style="color:var(--text-primary);">${db.kpis.totalRepairRequests.value}</strong>
-                  </div>
-                  <div style="display:flex; justify-content:space-between;">
-                    <span style="color:var(--text-secondary);">Conversion Ratio</span>
-                    <strong style="color:var(--success);">${db.kpis.ordersGenerated.value} Orders</strong>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Quick Stats widget -->
-              <div class="card" style="padding:20px; border-left:4px solid var(--warning);">
-                <h4 style="margin:0 0 8px 0; font-size:0.9rem; font-weight:700; color:var(--text-primary);">Terminal Configuration</h4>
-                <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
-                  Model: <strong>ScannerPro v3.2</strong><br>
-                  Firmware: <strong>v4.8.1-release</strong><br>
-                  Outbound Ports: <strong>SSL-443 Verified</strong>
-                </div>
-              </div>
-            </div>
-
-            <!-- Right Column: Settings Form -->
-            <div class="card" style="padding: 28px;">
-              <h3 style="margin:0 0 20px 0; font-size:1.25rem; font-weight:800; color:var(--text-primary);">Outlet Configurations</h3>
-              
-              <div style="display:flex; flex-direction:column; gap:16px;">
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                  <div class="form-group">
-                    <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.8rem;">Store Outlet Name</label>
-                    <input type="text" class="form-control" value="${db.storeName}" id="store-name-input">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.8rem;">Location City</label>
-                    <input type="text" class="form-control" value="${db.city}" id="store-city-input">
-                  </div>
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.8rem;">Store Physical Address</label>
-                  <input type="text" class="form-control" value="${db.profile ? db.profile.address || '401 Bay St., Toronto, ON M5H 2Y4' : '401 Bay St., Toronto, ON M5H 2Y4'}" id="store-addr-input">
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                  <div class="form-group">
-                    <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.8rem;">Operational Hours</label>
-                    <input type="text" class="form-control" value="${db.profile ? db.profile.hours || 'Mon-Sat: 08:00 AM - 08:00 PM' : 'Mon-Sat: 08:00 AM - 08:00 PM'}" id="store-hours-input">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" style="font-weight:600; margin-bottom:6px; font-size:0.8rem;">API Sync Limit (Hourly)</label>
-                    <input type="number" class="form-control" value="250" readonly style="background:var(--bg-app); cursor:not-allowed;">
-                  </div>
-                </div>
-
-                <div style="border-top:1px solid var(--border-color); margin-top:12px; padding-top:16px;">
-                  <h4 style="margin:0 0 12px 0; font-size:0.95rem; font-weight:700; color:var(--text-primary);">Preferences & Notifications</h4>
-                  
-                  <div style="display:flex; flex-direction:column; gap:12px;">
-                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
-                      <input type="checkbox" checked style="width:16px; height:16px; cursor:pointer;">
-                      Enable email reports for failed AI scan analysis
-                    </label>
-                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
-                      <input type="checkbox" checked style="width:16px; height:16px; cursor:pointer;">
-                      Sync local inventory database with material recommendations automatically
-                    </label>
-                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:0.82rem; color:var(--text-secondary);">
-                      <input type="checkbox" style="width:16px; height:16px; cursor:pointer;">
-                      Low Stock Alerts (Push notification when stock is below 10 units)
-                    </label>
-                  </div>
-                </div>
-
-                <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:12px;">
-                  <button class="btn btn-secondary" onclick="window.BotNBoltApp.navigate('overview')" style="padding:10px 18px;">Cancel</button>
-                  <button class="btn btn-primary" onclick="alert('Store configuration successfully synchronized and saved!')" style="padding:10px 22px;">Save Configurations</button>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        `;
+        setTimeout(() => {
+          this.updateAddStorePreview();
+        }, 10);
       } else if (menu === 'tickets') {
         const tableKey = 'tickets_dlr';
         const searchQuery = (this.state.searchQueries[tableKey] || '').toLowerCase();
@@ -8810,8 +9097,8 @@
       const body = `
         <form id="addCompanyForm">
           <div class="form-group">
-            <label class="form-label">Company Name</label>
-            <input type="text" id="coName" class="form-control" placeholder="e.g. Acme Motors" required>
+            <label class="form-label">Dealer Name</label>
+            <input type="text" id="coName" class="form-control" placeholder="e.g. Home Hardware" required>
           </div>
           
           <div class="form-row">
@@ -8863,10 +9150,10 @@
 
       const footer = `
         <button class="btn btn-secondary" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
-        <button class="btn btn-primary" onclick="window.BotNBoltApp.submitAddCompany()">Create Brand Partner</button>
+        <button class="btn btn-primary" onclick="window.BotNBoltApp.submitAddCompany()">Register Dealer</button>
       `;
 
-      this.showModal("Add Hardware Brand Partner", body, footer);
+      this.showModal("Add Enterprise Dealer", body, footer);
     }
 
     submitAddCompany() {
@@ -9215,6 +9502,591 @@
       }
     }
 
+    switchActiveStore(storeId) {
+      const store = (this.state.db.superAdmin.dealers || []).find(d => d.id === storeId);
+      if (!store) return;
+      this.state.db.dealer.storeName = store.name;
+      this.state.db.dealer.city = store.city;
+      if (this.state.db.dealer.profile) {
+        this.state.db.dealer.profile.storeName = store.name;
+        this.state.db.dealer.profile.address = (store.location || '') + ', ' + store.city + ', ' + (store.province || 'Ontario');
+      }
+      this.saveState();
+      this.renderCurrentView();
+      alert(`Active dealer terminal session switched to: "${store.name}" (${store.city}, ${store.province}).`);
+    }
+
+    openStoreDetailsModal(storeId) {
+      const store = (this.state.db.superAdmin.dealers || []).find(d => d.id === storeId);
+      if (!store) return;
+
+      const currentStoreName = (this.state.db.dealer && this.state.db.dealer.storeName) || 'Home hardware 01';
+      const isCurrent = store.name === currentStoreName;
+
+      const title = `Store Profile: ${store.name} (${store.id})`;
+      const body = `
+        <div style="display:flex; flex-direction:column; gap:18px;">
+          <!-- Header Card -->
+          <div class="variant-modal-header-banner" style="margin-bottom:0;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+              <div>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                  <code class="sku-tag" style="font-weight:700; font-size:0.8rem;">${store.id}</code>
+                  <span class="currency-tag">${store.province || 'Ontario'}</span>
+                  <span class="badge ${store.status === 'Active' ? 'badge-success' : 'badge-danger'}">${store.status || 'Active'}</span>
+                </div>
+                <h3 style="margin:0; font-size:1.2rem; font-weight:800; color:var(--text-primary);">${store.name}</h3>
+                <p style="margin:4px 0 0 0; font-size:0.82rem; color:var(--text-secondary);">${store.company || 'Retail Brand Partner'} • ${store.location}, ${store.city}</p>
+              </div>
+              <div>
+                <span class="badge ${store.status === 'Active' ? 'badge-success' : 'badge-danger'}" style="padding:6px 14px; font-size:0.78rem; font-weight:700;">
+                  <i data-lucide="${store.status === 'Active' ? 'check-circle-2' : 'slash'}"></i> ${store.status || 'Active'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4 Mini Metrics -->
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px;">
+            <div style="background:var(--bg-app); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px 12px;">
+              <div style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Monthly Scans</div>
+              <strong style="font-size:1.15rem; color:var(--text-primary);">${store.monthlyRequests || 0}</strong>
+            </div>
+            <div style="background:var(--bg-app); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px 12px;">
+              <div style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Material Sales</div>
+              <strong style="font-size:1.15rem; color:var(--primary);">$${(store.materialSales || 0).toLocaleString()}</strong>
+            </div>
+            <div style="background:var(--bg-app); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px 12px;">
+              <div style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Conversion Rate</div>
+              <strong style="font-size:1.15rem; color:var(--success);">${store.conversionRate || 0}%</strong>
+            </div>
+            <div style="background:var(--bg-app); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px 12px;">
+              <div style="font-size:0.68rem; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Customer Rating</div>
+              <strong style="font-size:1.15rem; color:#f59e0b;">⭐ ${store.rating || '4.5'}</strong>
+            </div>
+          </div>
+
+          <!-- Contact & Location Info -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div style="border:1px solid var(--border-color); border-radius:var(--radius-md); padding:14px 16px;">
+              <h5 style="margin:0 0 10px 0; font-size:0.85rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                <i data-lucide="user-check" style="width:14px; height:14px; color:var(--primary);"></i> Management Contact
+              </h5>
+              <div style="display:flex; flex-direction:column; gap:8px; font-size:0.82rem;">
+                <div><span style="color:var(--text-secondary);">Store Manager:</span> <strong>${store.manager || 'Unassigned'}</strong></div>
+                <div><span style="color:var(--text-secondary);">Phone:</span> <a href="tel:${store.phone}" style="color:var(--primary); font-weight:600;">${store.phone}</a></div>
+                <div><span style="color:var(--text-secondary);">Email:</span> <a href="mailto:${store.email}" style="color:var(--primary); font-weight:600;">${store.email}</a></div>
+                <div><span style="color:var(--text-secondary);">Last Active:</span> <strong>${store.lastActive || 'Today'}</strong></div>
+              </div>
+            </div>
+
+            <div style="border:1px solid var(--border-color); border-radius:var(--radius-md); padding:14px 16px;">
+              <h5 style="margin:0 0 10px 0; font-size:0.85rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                <i data-lucide="map-pin" style="width:14px; height:14px; color:var(--primary);"></i> Store Operating Info
+              </h5>
+              <div style="display:flex; flex-direction:column; gap:8px; font-size:0.82rem;">
+                <div><span style="color:var(--text-secondary);">Address:</span> <strong>${store.location}</strong></div>
+                <div><span style="color:var(--text-secondary);">City & Province:</span> <strong>${store.city}, ${store.province}</strong></div>
+                <div><span style="color:var(--text-secondary);">Hours:</span> <strong>Mon-Sat: 08:00 AM - 08:00 PM</strong></div>
+                <div><span style="color:var(--text-secondary);">AI Diagnostics:</span> <strong style="color:var(--success);">Online & Active</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const modalWindow = document.querySelector('.modal-window');
+      if (modalWindow) {
+        modalWindow.style.maxWidth = '720px';
+      }
+
+      this.showModal(title, body, '');
+      lucide.createIcons();
+    }
+
+    openAddStoreModal() {
+      const activeCat = this.state.selectedCategory || 'All';
+      const isAll = activeCat === 'All';
+      const companies = isAll ? this.state.db.superAdmin.companies : this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      const defaultCompany = companies[0] ? companies[0].name : 'Home hardware';
+
+      const nextNum = (this.state.db.superAdmin.dealers || []).length + 1;
+      const suggestedId = `DLR-HH-${nextNum < 10 ? '0' + nextNum : nextNum}`;
+
+      const title = "Add Store / Outlet Location";
+      const body = `
+        <form id="addStoreForm" onsubmit="event.preventDefault(); window.BotNBoltApp.saveNewStore();">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Store Outlet Name *</label>
+              <input type="text" id="addStoreName" class="form-control" placeholder="e.g. Home hardware ${nextNum < 10 ? '0' + nextNum : nextNum}" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Store ID / Code *</label>
+              <input type="text" id="addStoreId" class="form-control" value="${suggestedId}" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Company Brand *</label>
+              <input type="text" id="addStoreCompany" class="form-control" value="${defaultCompany}" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Store Status *</label>
+              <select id="addStoreStatus" class="form-control" required>
+                <option value="Active">Active</option>
+                <option value="Disabled">Disabled / Maintenance</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">City *</label>
+              <input type="text" id="addStoreCity" class="form-control" placeholder="e.g. Toronto" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Province *</label>
+              <select id="addStoreProvince" class="form-control" required>
+                <option value="Ontario">Ontario</option>
+                <option value="Quebec">Quebec</option>
+                <option value="British Columbia">British Columbia</option>
+                <option value="Alberta">Alberta</option>
+                <option value="Manitoba">Manitoba</option>
+                <option value="Saskatchewan">Saskatchewan</option>
+                <option value="Nova Scotia">Nova Scotia</option>
+                <option value="New Brunswick">New Brunswick</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Physical Street Address *</label>
+            <input type="text" id="addStoreLocation" class="form-control" placeholder="e.g. 1050 Danforth Ave" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Store Manager *</label>
+              <input type="text" id="addStoreManager" class="form-control" placeholder="e.g. Robert Chen" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone Number *</label>
+              <input type="text" id="addStorePhone" class="form-control" placeholder="e.g. +1 (416) 555-9011" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Store Contact Email *</label>
+            <input type="email" id="addStoreEmail" class="form-control" placeholder="e.g. store@hhdealers.com" required>
+          </div>
+        </form>
+      `;
+
+      const footer = `
+        <button class="btn btn-secondary" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
+        <button class="btn btn-primary" onclick="window.BotNBoltApp.saveNewStore()">Create Store</button>
+      `;
+
+      const modalWindow = document.querySelector('.modal-window');
+      if (modalWindow) {
+        modalWindow.style.maxWidth = '680px';
+      }
+
+      this.showModal(title, body, footer);
+      lucide.createIcons();
+    }
+
+    saveNewStore() {
+      const name = document.getElementById('addStoreName').value.trim();
+      const id = document.getElementById('addStoreId').value.trim();
+      const company = document.getElementById('addStoreCompany').value.trim();
+      const status = document.getElementById('addStoreStatus').value;
+      const city = document.getElementById('addStoreCity').value.trim();
+      const province = document.getElementById('addStoreProvince').value;
+      const location = document.getElementById('addStoreLocation').value.trim();
+      const manager = document.getElementById('addStoreManager').value.trim();
+      const phone = document.getElementById('addStorePhone').value.trim();
+      const email = document.getElementById('addStoreEmail').value.trim();
+
+      if (!name || !id || !city || !location || !manager || !phone || !email) {
+        alert("Please fill in all required fields.");
+        return;
+      }
+
+      const newStore = {
+        id,
+        name,
+        company,
+        city,
+        location,
+        province,
+        manager,
+        phone,
+        email,
+        monthlyRequests: 0,
+        materialSales: 0,
+        conversionRate: 0,
+        rating: 5.0,
+        lastActive: "Just now",
+        status
+      };
+
+      if (!this.state.db.superAdmin.dealers) {
+        this.state.db.superAdmin.dealers = [];
+      }
+      this.state.db.superAdmin.dealers.unshift(newStore);
+      if (this.state.db.companyAdmin && this.state.db.companyAdmin.dealers) {
+        this.state.db.companyAdmin.dealers.unshift(newStore);
+      }
+
+      this.saveState();
+      this.closeModalForce();
+      this.renderCurrentView();
+      alert(`Store "${name}" (${id}) created successfully.`);
+    }
+
+    updateAddStorePreview() {
+      const nameInput = document.getElementById('asp-name');
+      const idInput = document.getElementById('asp-id');
+      const companyInput = document.getElementById('asp-company');
+      const statusInput = document.getElementById('asp-status');
+      const locInput = document.getElementById('asp-location');
+      const cityInput = document.getElementById('asp-city');
+      const provInput = document.getElementById('asp-province');
+      const managerInput = document.getElementById('asp-manager');
+      const phoneInput = document.getElementById('asp-phone');
+      const emailInput = document.getElementById('asp-email');
+      const hoursInput = document.getElementById('asp-hours');
+
+      if (!nameInput) return;
+
+      const name = nameInput.value.trim() || 'New Store';
+      const id = idInput ? (idInput.value.trim() || 'DLR-NEW') : 'DLR-NEW';
+      const company = companyInput ? companyInput.value : 'Home hardware';
+      const status = statusInput ? statusInput.value : 'Active';
+      const location = locInput ? locInput.value.trim() : '';
+      const city = cityInput ? cityInput.value.trim() : '';
+      const prov = provInput ? provInput.value : 'Ontario';
+      const manager = managerInput ? (managerInput.value.trim() || 'Unassigned') : 'Unassigned';
+      const phone = phoneInput ? (phoneInput.value.trim() || 'No phone') : 'No phone';
+      const email = emailInput ? (emailInput.value.trim() || 'No email') : 'No email';
+      const hours = hoursInput ? (hoursInput.value.trim() || 'Mon-Sat: 08:00 AM - 08:00 PM') : 'Mon-Sat: 08:00 AM - 08:00 PM';
+
+      const previewName = document.getElementById('asp-preview-name');
+      if (previewName) previewName.innerText = name;
+
+      const previewAvatar = document.getElementById('asp-preview-avatar');
+      if (previewAvatar) {
+        const initials = name.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'ST';
+        previewAvatar.innerText = initials;
+      }
+
+      const previewId = document.getElementById('asp-preview-id');
+      if (previewId) previewId.innerText = id;
+
+      const previewCompany = document.getElementById('asp-preview-company-badge');
+      if (previewCompany) previewCompany.innerText = company;
+
+      const previewStatusPill = document.getElementById('asp-preview-status-pill');
+      if (previewStatusPill) {
+        previewStatusPill.innerText = status === 'Active' ? 'Active Outlet' : 'Disabled Outlet';
+        previewStatusPill.className = `badge ${status === 'Active' ? 'badge-success' : 'badge-danger'}`;
+      }
+
+      const previewLocation = document.getElementById('asp-preview-location');
+      if (previewLocation) {
+        const locStr = [location, city, prov].filter(Boolean).join(', ') || 'Address not specified';
+        previewLocation.innerText = locStr;
+      }
+
+      const previewManager = document.getElementById('asp-preview-manager');
+      if (previewManager) previewManager.innerText = manager;
+
+      const previewPhone = document.getElementById('asp-preview-phone');
+      if (previewPhone) previewPhone.innerText = phone;
+
+      const previewEmail = document.getElementById('asp-preview-email');
+      if (previewEmail) previewEmail.innerText = email;
+
+      const previewHours = document.getElementById('asp-preview-hours');
+      if (previewHours) previewHours.innerText = hours;
+    }
+
+    resetAddStoreProfileForm() {
+      const form = document.getElementById('addStoreProfilePageForm');
+      if (form) {
+        form.reset();
+        this.updateAddStorePreview();
+      }
+    }
+
+    submitAddStoreProfile() {
+      const nameInput = document.getElementById('asp-name');
+      const idInput = document.getElementById('asp-id');
+      const companyInput = document.getElementById('asp-company');
+      const statusInput = document.getElementById('asp-status');
+      const locInput = document.getElementById('asp-location');
+      const cityInput = document.getElementById('asp-city');
+      const provInput = document.getElementById('asp-province');
+      const postalInput = document.getElementById('asp-postal');
+      const managerInput = document.getElementById('asp-manager');
+      const phoneInput = document.getElementById('asp-phone');
+      const emailInput = document.getElementById('asp-email');
+      const hoursInput = document.getElementById('asp-hours');
+
+      const name = nameInput ? nameInput.value.trim() : '';
+      const id = idInput ? idInput.value.trim() : '';
+      const company = companyInput ? companyInput.value.trim() : 'Home hardware';
+      const status = statusInput ? statusInput.value : 'Active';
+      const location = locInput ? locInput.value.trim() : '';
+      const city = cityInput ? cityInput.value.trim() : '';
+      const province = provInput ? provInput.value : 'Ontario';
+      const postal = postalInput ? postalInput.value.trim() : '';
+      const manager = managerInput ? managerInput.value.trim() : '';
+      const phone = phoneInput ? phoneInput.value.trim() : '';
+      const email = emailInput ? emailInput.value.trim() : '';
+      const hours = hoursInput ? (hoursInput.value.trim() || 'Mon-Sat: 08:00 AM - 08:00 PM') : 'Mon-Sat: 08:00 AM - 08:00 PM';
+
+      if (!name || !id || !city || !location || !manager || !phone || !email) {
+        alert("Please fill in all required fields marked with *");
+        return;
+      }
+
+      // Check if store ID already exists
+      const existing = (this.state.db.superAdmin.dealers || []).find(d => (d.id || '').toLowerCase() === id.toLowerCase());
+      if (existing) {
+        alert(`A store outlet with Code / ID "${id}" already exists ("${existing.name}"). Please enter a unique Store ID.`);
+        return;
+      }
+
+      const fullAddress = postal ? `${location}, ${postal}` : location;
+      const newStore = {
+        id,
+        name,
+        company,
+        city,
+        location: fullAddress,
+        province,
+        manager,
+        phone,
+        email,
+        hours,
+        monthlyRequests: 0,
+        materialSales: 0,
+        conversionRate: 0,
+        rating: 5.0,
+        lastActive: "Just now",
+        status
+      };
+
+      if (!this.state.db.superAdmin.dealers) {
+        this.state.db.superAdmin.dealers = [];
+      }
+      this.state.db.superAdmin.dealers.unshift(newStore);
+      if (this.state.db.companyAdmin && this.state.db.companyAdmin.dealers) {
+        this.state.db.companyAdmin.dealers.unshift(newStore);
+      }
+
+      this.saveState();
+      alert(`🎉 Store Profile "${name}" (${id}) has been successfully registered into the store network!`);
+      this.navigate('stores');
+    }
+
+    openEditStoreModal(storeId) {
+      const store = (this.state.db.superAdmin.dealers || []).find(d => d.id === storeId);
+      if (!store) return;
+
+      const title = `Edit Store: ${store.name}`;
+      const body = `
+        <form id="editStoreForm" onsubmit="event.preventDefault(); window.BotNBoltApp.saveEditedStore('${store.id}');">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Store Outlet Name *</label>
+              <input type="text" id="editStoreName" class="form-control" value="${(store.name || '').replace(/"/g, '&quot;')}" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Store ID</label>
+              <input type="text" id="editStoreId" class="form-control" value="${store.id}" readonly style="background:var(--bg-app); cursor:not-allowed;">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">City *</label>
+              <input type="text" id="editStoreCity" class="form-control" value="${(store.city || '').replace(/"/g, '&quot;')}" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Province *</label>
+              <select id="editStoreProvince" class="form-control" required>
+                <option value="Ontario" ${store.province === 'Ontario' ? 'selected' : ''}>Ontario</option>
+                <option value="Quebec" ${store.province === 'Quebec' ? 'selected' : ''}>Quebec</option>
+                <option value="British Columbia" ${store.province === 'British Columbia' ? 'selected' : ''}>British Columbia</option>
+                <option value="Alberta" ${store.province === 'Alberta' ? 'selected' : ''}>Alberta</option>
+                <option value="Manitoba" ${store.province === 'Manitoba' ? 'selected' : ''}>Manitoba</option>
+                <option value="Saskatchewan" ${store.province === 'Saskatchewan' ? 'selected' : ''}>Saskatchewan</option>
+                <option value="Nova Scotia" ${store.province === 'Nova Scotia' ? 'selected' : ''}>Nova Scotia</option>
+                <option value="New Brunswick" ${store.province === 'New Brunswick' ? 'selected' : ''}>New Brunswick</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Physical Street Address *</label>
+            <input type="text" id="editStoreLocation" class="form-control" value="${(store.location || '').replace(/"/g, '&quot;')}" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Store Manager *</label>
+              <input type="text" id="editStoreManager" class="form-control" value="${(store.manager || '').replace(/"/g, '&quot;')}" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone Number *</label>
+              <input type="text" id="editStorePhone" class="form-control" value="${(store.phone || '').replace(/"/g, '&quot;')}" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Store Contact Email *</label>
+              <input type="email" id="editStoreEmail" class="form-control" value="${(store.email || '').replace(/"/g, '&quot;')}" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status *</label>
+              <select id="editStoreStatus" class="form-control" required>
+                <option value="Active" ${store.status === 'Active' ? 'selected' : ''}>Active</option>
+                <option value="Disabled" ${store.status === 'Disabled' ? 'selected' : ''}>Disabled / Maintenance</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      `;
+
+      const footer = `
+        <button class="btn btn-secondary" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
+        <button class="btn btn-primary" onclick="window.BotNBoltApp.saveEditedStore('${store.id}')">Save Changes</button>
+      `;
+
+      const modalWindow = document.querySelector('.modal-window');
+      if (modalWindow) {
+        modalWindow.style.maxWidth = '680px';
+      }
+
+      this.showModal(title, body, footer);
+      lucide.createIcons();
+    }
+
+    saveEditedStore(storeId) {
+      const store = (this.state.db.superAdmin.dealers || []).find(d => d.id === storeId);
+      if (!store) return;
+
+      const name = document.getElementById('editStoreName').value.trim();
+      const city = document.getElementById('editStoreCity').value.trim();
+      const province = document.getElementById('editStoreProvince').value;
+      const location = document.getElementById('editStoreLocation').value.trim();
+      const manager = document.getElementById('editStoreManager').value.trim();
+      const phone = document.getElementById('editStorePhone').value.trim();
+      const email = document.getElementById('editStoreEmail').value.trim();
+      const status = document.getElementById('editStoreStatus').value;
+
+      if (!name || !city || !location || !manager || !phone || !email) {
+        alert("Please fill in all required fields.");
+        return;
+      }
+
+      store.name = name;
+      store.city = city;
+      store.province = province;
+      store.location = location;
+      store.manager = manager;
+      store.phone = phone;
+      store.email = email;
+      store.status = status;
+
+      // Also update in companyAdmin if exists
+      if (this.state.db.companyAdmin && this.state.db.companyAdmin.dealers) {
+        const coStore = this.state.db.companyAdmin.dealers.find(d => d.id === storeId);
+        if (coStore) {
+          coStore.name = name;
+          coStore.city = city;
+          coStore.province = province;
+          coStore.location = location;
+          coStore.manager = manager;
+          coStore.phone = phone;
+          coStore.email = email;
+          coStore.status = status;
+        }
+      }
+
+      this.saveState();
+      this.closeModalForce();
+      this.renderCurrentView();
+      alert(`Store "${name}" (${storeId}) updated successfully.`);
+    }
+
+    toggleStoreStatus(storeId) {
+      const store = (this.state.db.superAdmin.dealers || []).find(d => d.id === storeId);
+      if (store) {
+        store.status = store.status === 'Active' ? 'Disabled' : 'Active';
+        if (this.state.db.companyAdmin && this.state.db.companyAdmin.dealers) {
+          const coStore = this.state.db.companyAdmin.dealers.find(d => d.id === storeId);
+          if (coStore) coStore.status = store.status;
+        }
+        this.saveState();
+        this.renderCurrentView();
+        alert(`Store "${store.name}" status updated to: ${store.status}`);
+      }
+    }
+
+    deleteStoreProfile(storeId) {
+      const store = (this.state.db.superAdmin.dealers || []).find(d => d.id === storeId);
+      const storeName = store ? store.name : storeId;
+      if (!confirm(`Are you sure you want to delete store profile "${storeName}" (${storeId})? This action cannot be undone.`)) {
+        return;
+      }
+
+      this.state.db.superAdmin.dealers = (this.state.db.superAdmin.dealers || []).filter(d => d.id !== storeId);
+      if (this.state.db.companyAdmin && this.state.db.companyAdmin.dealers) {
+        this.state.db.companyAdmin.dealers = this.state.db.companyAdmin.dealers.filter(d => d.id !== storeId);
+      }
+
+      this.saveState();
+      this.renderCurrentView();
+      alert(`Store profile "${storeName}" has been deleted successfully.`);
+    }
+
+    exportStoresCsv(tableKey) {
+      const activeCat = this.state.selectedCategory || 'All';
+      const isAll = activeCat === 'All';
+      const companies = isAll ? this.state.db.superAdmin.companies : this.state.db.superAdmin.companies.filter(c => this.getCompanyCategory(c.name) === activeCat);
+      const activeCompany = companies[0] ? companies[0].name : 'Home hardware';
+
+      let allStores = (this.state.db.superAdmin.dealers || []).filter(d => d.company === activeCompany);
+      if (allStores.length === 0) allStores = this.state.db.superAdmin.dealers || [];
+
+      const headers = ["Store ID", "Store Name", "Company Brand", "City", "Province", "Address", "Manager", "Phone", "Email", "Monthly Requests", "Material Sales", "Conversion Rate", "Rating", "Status"];
+      const rows = allStores.map(s => [
+        s.id,
+        s.name,
+        s.company || activeCompany,
+        s.city,
+        s.province,
+        s.location,
+        s.manager,
+        s.phone,
+        s.email,
+        s.monthlyRequests || 0,
+        s.materialSales || 0,
+        s.conversionRate || 0,
+        s.rating || 4.5,
+        s.status || 'Active'
+      ]);
+
+      this.exportToCsv("Dealer_Store_Network.csv", headers, rows);
+    }
+
     handleTableSearch(tableKey, query) {
       this.state.searchQueries[tableKey] = query;
       this.state.pageIndices[tableKey] = 0;
@@ -9354,19 +10226,19 @@
     }
 
     exportCompaniesCsv(tableKey) {
-      const headers = ["Tenant ID", "Tenant Name", "Email", "Industry", "Plan Tier", "Dealers Registered", "Status", "Contract Expiry"];
+      const headers = ["Dealer ID", "Dealer Name", "Email", "Industry", "Plan Tier", "Stores Registered", "Status", "Contract Expiry"];
       const rows = this.state.db.superAdmin.companies.map(co => [
         co.id, co.name, co.email, co.industryType, co.subscriptionPlan, co.totalDealers, co.status, co.expiryDate
       ]);
-      this.exportToCsv("BotNBolt_Companies.csv", headers, rows);
+      this.exportToCsv("BotNBolt_Dealers.csv", headers, rows);
     }
 
     exportDealersCsv(tableKey) {
-      const headers = ["Dealer ID", "Dealer Name", "Company", "City", "Province", "Manager Name", "Scans Count", "Status"];
+      const headers = ["Store ID", "Store Name", "Dealer", "City", "Province", "Manager Name", "Scans Count", "Status"];
       const rows = this.state.db.superAdmin.dealers.map(dl => [
         dl.id, dl.name, dl.company, dl.city, dl.province, dl.manager, dl.monthlyRequests, dl.status
       ]);
-      this.exportToCsv("BotNBolt_Dealers.csv", headers, rows);
+      this.exportToCsv("BotNBolt_Stores.csv", headers, rows);
     }
 
     exportTicketsCsv(tableKey) {
@@ -9420,14 +10292,6 @@
       this.exportToCsv("Dealer_Repair_Requests.csv", headers, rows);
     }
 
-    exportLeadsDlrCsv(tableKey) {
-      const headers = ["Customer Name", "Phone", "Email", "Category", "Interested Products", "Location", "Status"];
-      const rows = this.state.db.dealer.customerLeads.map(ld => [
-        ld.name, ld.phone, ld.email, ld.repairType, ld.interestedProducts, ld.location, ld.leadStatus
-      ]);
-      this.exportToCsv("Dealer_Customer_Leads.csv", headers, rows);
-    }
-
     exportMaterialsDlrCsv(tableKey) {
       const headers = ["Product ID", "Product Title", "Description", "Vendor", "Category", "Currency", "Variants Count", "In Stock Variants", "Variant Details"];
       const rows = ((this.state.db && this.state.db.dealer && this.state.db.dealer.materialRecommendations) || []).map(prod => {
@@ -9479,7 +10343,7 @@
       if (!co) return;
       const body = `
         <div class="form-group">
-          <label class="form-label">Tenant Name</label>
+          <label class="form-label">Dealer Name</label>
           <input type="text" id="editCoName" class="form-control" value="${co.name}">
         </div>
         <div class="form-group">
@@ -9499,7 +10363,7 @@
         <button class="btn btn-secondary" onclick="window.BotNBoltApp.closeModalForce()">Cancel</button>
         <button class="btn btn-primary" onclick="window.BotNBoltApp.saveCompanyDetails('${co.id}')">Save Changes</button>
       `;
-      this.showModal(`Edit Tenant Details: ${co.name}`, body, footer);
+      this.showModal(`Edit Dealer Details: ${co.name}`, body, footer);
     }
 
     saveCompanyDetails(id) {
@@ -9512,7 +10376,7 @@
         this.saveState();
         this.closeModalForce();
         this.renderCurrentView();
-        alert("Tenant details updated.");
+        alert("Dealer details updated.");
       }
     }
 
@@ -9720,7 +10584,7 @@
 
             <!-- Tenant Selector -->
             <select class="filter-pill-select" onchange="window.BotNBoltApp.setAwsFilter('tenant_select', this.value)">
-              <option value="ALL">🏢 Tenant: All Enterprises (${tenants.length})</option>
+              <option value="ALL">🏢 Dealer: All Enterprises (${tenants.length})</option>
               ${tenants.map(t => `<option value="${t.id}">🏢 ${t.name}</option>`).join('')}
             </select>
 
@@ -9767,7 +10631,7 @@
           <!-- Search Tenant Input -->
           <div style="position:relative; min-width:220px;">
             <i data-lucide="search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); width:14px; height:14px; color:var(--text-muted);"></i>
-            <input type="text" placeholder="Search tenant..." class="filter-pill-select" style="padding-left:34px; width:100%; border-radius:9999px;" value="${searchVal}" oninput="window.BotNBoltApp.setSearchQuery('aws_tenant_search', this.value)">
+            <input type="text" placeholder="Search dealer..." class="filter-pill-select" style="padding-left:34px; width:100%; border-radius:9999px;" value="${searchVal}" oninput="window.BotNBoltApp.setSearchQuery('aws_tenant_search', this.value)">
           </div>
         </div>
 
@@ -9822,12 +10686,12 @@
           <!-- Card 4: Active Enterprise Tenants -->
           <div class="card" style="padding:16px; border-radius:var(--radius-lg); border-left:4px solid #06b6d4; background:linear-gradient(135deg, var(--bg-card) 0%, rgba(6,182,212,0.04) 100%); transition:transform 0.15s, box-shadow 0.15s;" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-              <span style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:var(--text-secondary);">Active Tenants</span>
+              <span style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:var(--text-secondary);">Active Dealers</span>
               <div style="width:28px; height:28px; border-radius:8px; background:rgba(6,182,212,0.1); display:flex; align-items:center; justify-content:center; color:#06b6d4;">
                 <i data-lucide="building-2" style="width:16px; height:16px;"></i>
               </div>
             </div>
-            <strong style="font-size:1.35rem; font-weight:800; color:var(--text-primary); font-family:var(--font-family);">${kpis.activeTenants} Tenants</strong>
+            <strong style="font-size:1.35rem; font-weight:800; color:var(--text-primary); font-family:var(--font-family);">${kpis.activeTenants} Dealers</strong>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
               <span style="font-size:0.7rem; color:#06b6d4; font-weight:600; background:rgba(6,182,212,0.1); padding:2px 6px; border-radius:4px;">${kpis.newTenants}</span>
               <span style="font-size:0.68rem; color:var(--text-muted);">Enterprise Orgs</span>
@@ -9912,7 +10776,7 @@
                 ${insights.highestCostTenant.logo}
               </div>
               <div style="flex:1;">
-                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Highest AWS Cost Tenant</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Highest AWS Cost Dealer</div>
                 <div style="font-size:1rem; font-weight:800; color:var(--text-primary); margin:2px 0;">${insights.highestCostTenant.name}</div>
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <strong style="font-size:0.85rem; color:var(--primary);">${insights.highestCostTenant.cost}</strong>
@@ -9957,7 +10821,7 @@
                 ${insights.mostProfitableCustomer.logo}
               </div>
               <div style="flex:1;">
-                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Most Profitable Tenant</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Most Profitable Dealer</div>
                 <div style="font-size:1rem; font-weight:800; color:var(--text-primary); margin:2px 0;">${insights.mostProfitableCustomer.name}</div>
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <strong style="font-size:0.78rem; color:#8b5cf6;">${insights.mostProfitableCustomer.profit}</strong>
@@ -9973,11 +10837,11 @@
         <div class="card" style="padding:20px; border-radius:var(--radius-lg); margin-bottom:24px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
             <div>
-              <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0;">Enterprise Tenant AWS Usage Directory</h3>
-              <p style="font-size:0.75rem; color:var(--text-secondary); margin:2px 0 0 0;">Click any tenant row or 'Details' button to open full-width side drawer with complete AWS breakdown</p>
+              <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-primary); margin:0;">Enterprise Dealer AWS Usage Directory</h3>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin:2px 0 0 0;">Click any dealer row or 'Details' button to open full-width side drawer with complete AWS breakdown</p>
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
-              <span style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Showing ${filteredTenants.length} of ${tenants.length} Tenants</span>
+              <span style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Showing ${filteredTenants.length} of ${tenants.length} Dealers</span>
             </div>
           </div>
 
@@ -9985,7 +10849,7 @@
             <table class="table" style="width:100%; border-collapse:collapse;">
               <thead>
                 <tr style="border-bottom: 2px solid var(--border-color); text-align: left; font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary);">
-                  <th style="padding:12px 14px;">Tenant Name</th>
+                  <th style="padding:12px 14px;">Dealer Name</th>
                   <th style="padding:12px 14px;">Plan</th>
                   <th style="padding:12px 14px;">Active Users</th>
                   <th style="padding:12px 14px;">Monthly Requests</th>
@@ -10181,7 +11045,7 @@
                 <tr style="border-bottom: 2px solid var(--border-color); text-align: left; font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary);">
                   <th style="padding:10px 14px;">Request ID</th>
                   <th style="padding:10px 14px;">User</th>
-                  <th style="padding:10px 14px;">Tenant</th>
+                  <th style="padding:10px 14px;">Dealer</th>
                   <th style="padding:10px 14px;">Module</th>
                   <th style="padding:10px 14px;">AI Model</th>
                   <th style="padding:10px 14px;">Storage</th>
@@ -10347,7 +11211,7 @@
               <strong style="font-size:0.85rem; color:white;">Amazon Bedrock ($10,811.30)</strong>
             </div>
             <div>
-              <div style="font-size:0.68rem; text-transform:uppercase; color:#94a3b8; font-weight:600;">Highest Spending Tenant</div>
+              <div style="font-size:0.68rem; text-transform:uppercase; color:#94a3b8; font-weight:600;">Highest Spending Dealer</div>
               <strong style="font-size:0.85rem; color:white;">Home Depot ($8,420.50)</strong>
             </div>
             <div>
